@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/index.js';
 import { useAdminAuth } from '../../context/AuthContext.jsx';
@@ -6,10 +6,25 @@ import { useAdminAuth } from '../../context/AuthContext.jsx';
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAdminAuth();
+
+  useEffect(() => {
+    if (remember) {
+      localStorage.setItem('rememberedAdminEmail', email);
+    }
+  }, [email, remember]);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedAdminEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRemember(true);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,6 +33,11 @@ export default function AdminLoginPage() {
     try {
       const data = await authApi.adminLogin({ email, password });
       login(data);
+      if (remember) {
+        localStorage.setItem('rememberedAdminEmail', email);
+      } else {
+        localStorage.removeItem('rememberedAdminEmail');
+      }
       navigate('/admin');
     } catch (err) {
       setError(err.message);
@@ -59,6 +79,15 @@ export default function AdminLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+          <div className="remember-me">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            <label htmlFor="remember">Запомнить меня</label>
           </div>
           <button className="btn btn-accent btn-block btn-lg" type="submit" disabled={loading}>
             {loading ? 'Вход...' : 'Войти как администратор'}

@@ -977,6 +977,27 @@ h3 { font-size: 1.125rem; font-weight: 600; }
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.remember-me input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.remember-me label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
   margin-bottom: 16px;
 }
 
