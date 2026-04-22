@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Env files
+.env
+.env.local
+
+# Build outputs
+client/dist/
+server/dist/
+
+# IDE / OS junk
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Databases (Docker handles this, but local files can exist)
+server/prisma/*.db
+server/prisma/*.sqlite-journal

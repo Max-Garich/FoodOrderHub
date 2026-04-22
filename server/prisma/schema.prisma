@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int              @id @default(autoincrement())
+  email        String           @unique
+  phone        String?
+  passwordHash String           @map("password_hash")
+  name         String
+  isDeleted    Boolean          @default(false) @map("is_deleted")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  balance        Balance?
+  orders         Order[]
+  balanceHistory BalanceHistory[]
+  favorites      Favorite[]
+
+  @@map("users")
+}
+
+model Admin {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  isSuperAdmin Boolean  @default(false) @map("is_superadmin")
+  isActive     Boolean  @default(true)  @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  balanceHistory BalanceHistory[]
+  orderSessions  OrderSession[]
+
+  @@map("admins")
+}
+
+model Balance {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique @map("user_id")
+  amount    Float    @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("balances")
+}
+
+model BalanceHistory {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  adminId      Int?     @map("admin_id")
+  amount       Float
+  type         String   // "topup" | "order_debit"
+  balanceAfter Float    @map("balance_after")
+  orderId      Int?     @map("order_id")
+  comment      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user  User   @relation(fields: [userId], references: [id])
+  admin Admin? @relation(fields: [adminId], references: [id])
+
+  @@map("balance_history")
+}
+
+model MenuItem {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  category    String?  @default("Прочее")
+  defaultPrice Float?   @map("default_price")
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  dailyMenus DailyMenu[]
+  favorites  Favorite[]
+
+  @@map("menu_items")
+}
+
+model DailyMenu {
+  id         Int      @id @default(autoincrement())
+  sessionId  Int      @map("session_id")
+  menuItemId Int?     @map("menu_item_id")
+  itemName   String   @map("item_name")
+  category   String?  @default("Прочее")
+  price      Float
+  isAvailable Boolean @default(true) @map("is_available")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session    OrderSession @relation(fields: [sessionId], references: [id])
+  menuItem   MenuItem?    @relation(fields: [menuItemId], references: [id])
+  orderItems OrderItem[]
+
+  @@map("daily_menus")
+}
+
+model OrderSession {
+  id          Int       @id @default(autoincrement())
+  adminId     Int       @map("admin_id")
+  sessionDate String    @map("session_date") // YYYY-MM-DD
+  isActive    Boolean   @default(false) @map("is_active")
+  startedAt   DateTime? @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  summaryJson String?   @map("summary_json")
+
+  admin      Admin       @relation(fields: [adminId], references: [id])
+  dailyMenus DailyMenu[]
+  orders     Order[]
+
+  @@map("order_sessions")
+}
+
+model Order {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  sessionId   Int      @map("session_id")
+  totalAmount Float    @map("total_amount")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user    User         @relation(fields: [userId], references: [id])
+  session OrderSession @relation(fields: [sessionId], references: [id])
+  items   OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int    @id @default(autoincrement())
+  orderId     Int    @map("order_id")
+  dailyMenuId Int    @map("daily_menu_id")
+  itemName    String @map("item_name")
+  price       Float
+  quantity    Int
+  subtotal    Float
+
+  order     Order     @relation(fields: [orderId], references: [id])
+  dailyMenu DailyMenu @relation(fields: [dailyMenuId], references: [id])
+
+  @@map("order_items")
+}
+
+model Favorite {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  menuItemId Int      @map("menu_item_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User     @relation(fields: [userId], references: [id])
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@unique([userId, menuItemId])
+  @@map("favorites")
+}
