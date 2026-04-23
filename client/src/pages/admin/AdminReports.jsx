@@ -144,7 +144,7 @@ const toggleDish = (dishName) => {
                             {d.totalQuantity} порц. (₽{d.totalAmount.toLocaleString('ru-RU', {minimumFractionDigits: 2})})
                           </span>
                         </div>
-                        {expandedDishes[d.name] && d.buyers && (
+{expandedDishes[d.name] && d.buyers && d.buyers.length > 0 && (
                           <div style={{ 
                             marginLeft: 24, 
                             paddingLeft: 12, 
@@ -154,7 +154,7 @@ const toggleDish = (dishName) => {
                             {d.buyers.map((b, bi) => (
                               <div key={bi} style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
                                 <span>{b.userName}</span>
-                                <span>{b.quantity} порц. (₽{b.subtotal.toLocaleString('ru-RU', {minimumFractionDigits: 2})})</span>
+                                <span>{b.quantity} порц. (₽{b.subtotal.toLocaleString('ru-RU', {minimumFractionDigits: 2})})}</span>
                               </div>
                             ))}
                           </div>
