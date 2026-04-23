@@ -13,6 +13,7 @@ export default function AdminReports() {
   const [editPrice, setEditPrice] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState({});
+  const [expandedDishes, setExpandedDishes] = useState({});
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -67,6 +68,10 @@ export default function AdminReports() {
     setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
+  const toggleDish = (dishName) => {
+    setExpandedDishes(prev => ({ ...prev, [dishName]: !prev[dishName] }));
+  };
+
   return (
     <div className="page page-admin">
       {toast && <div className={`toast ${toast.type}`}>{toast.message}</div>}
@@ -119,14 +124,26 @@ export default function AdminReports() {
               {session.summary && (
                 <>
                   <div className="card" style={{ marginBottom: 12 }}>
-                    <h3 style={{ marginBottom: 8 }}>📦 По блюдам</h3>
-                    {session.summary.dishes?.map((d, i) => (
-                      <div className="summary-row" key={i}>
-                        <span>{d.name}</span>
-                        <span style={{ fontWeight: 600 }}>
-                          {d.totalQuantity} порц. (₽{d.totalAmount.toLocaleString('ru-RU', {minimumFractionDigits: 2})})
-                        </span>
+                    <div 
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: 8 }}
+                      onClick={() => setExpandedDishes(prev => ({ ...prev, dishes: !prev.dishes }))}
+                    >
+                      <h3 style={{ margin: 0 }}>📦 По блюдам</h3>
+                      <span style={{ transform: expandedDishes.dishes ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▶</span>
+                    </div>
+                    {(!expandedDishes.dishes ? (
+                      <div className="text-sm text-muted" style={{ textAlign: 'center', padding: '12px 0' }}>
+                        Нажмите ▶ чтобы увидеть детали
                       </div>
+                    ) : (
+                      session.summary.dishes?.map((d, i) => (
+                        <div className="summary-row" key={i}>
+                          <span>{d.name}</span>
+                          <span style={{ fontWeight: 600 }}>
+                            {d.totalQuantity} порц. (₽{d.totalAmount.toLocaleString('ru-RU', {minimumFractionDigits: 2})})
+                          </span>
+                        </div>
+                      ))
                     ))}
                   </div>
 
