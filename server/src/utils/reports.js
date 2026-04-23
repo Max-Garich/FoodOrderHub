@@ -18,10 +18,15 @@ export async function updateSessionSummary(prisma, sessionId) {
   for (const order of orders) {
     for (const item of order.items) {
       if (!dishSummary[item.itemName]) {
-        dishSummary[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0 };
+        dishSummary[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0, buyers: [] };
       }
       dishSummary[item.itemName].totalQuantity += item.quantity;
       dishSummary[item.itemName].totalAmount += item.subtotal;
+      dishSummary[item.itemName].buyers.push({
+        userName: order.user.name,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      });
     }
   }
 

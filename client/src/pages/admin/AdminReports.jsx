@@ -68,7 +68,7 @@ export default function AdminReports() {
     setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
-  const toggleDish = (dishName) => {
+const toggleDish = (dishName) => {
     setExpandedDishes(prev => ({ ...prev, [dishName]: !prev[dishName] }));
   };
 
@@ -124,26 +124,42 @@ export default function AdminReports() {
               {session.summary && (
                 <>
                   <div className="card" style={{ marginBottom: 12 }}>
-                    <div 
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: 8 }}
-                      onClick={() => setExpandedDishes(prev => ({ ...prev, dishes: !prev.dishes }))}
-                    >
-                      <h3 style={{ margin: 0 }}>📦 По блюдам</h3>
-                      <span style={{ transform: expandedDishes.dishes ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▶</span>
-                    </div>
-                    {(!expandedDishes.dishes ? (
-                      <div className="text-sm text-muted" style={{ textAlign: 'center', padding: '12px 0' }}>
-                        Нажмите ▶ чтобы увидеть детали
-                      </div>
-                    ) : (
-                      session.summary.dishes?.map((d, i) => (
-                        <div className="summary-row" key={i}>
-                          <span>{d.name}</span>
+                    <h3 style={{ marginBottom: 8 }}>📦 По блюдам</h3>
+                    {session.summary.dishes?.map((d, i) => (
+                      <div key={i}>
+                        <div 
+                          className="summary-row" 
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => toggleDish(d.name)}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ 
+                              transform: expandedDishes[d.name] ? 'rotate(90deg)' : 'rotate(0deg)', 
+                              transition: 'transform 0.2s',
+                              fontSize: '0.8rem'
+                            }}>▶</span>
+                            <span>{d.name}</span>
+                          </div>
                           <span style={{ fontWeight: 600 }}>
                             {d.totalQuantity} порц. (₽{d.totalAmount.toLocaleString('ru-RU', {minimumFractionDigits: 2})})
                           </span>
                         </div>
-                      ))
+                        {expandedDishes[d.name] && d.buyers && (
+                          <div style={{ 
+                            marginLeft: 24, 
+                            paddingLeft: 12, 
+                            borderLeft: '2px solid var(--border)',
+                            fontSize: '0.85rem'
+                          }}>
+                            {d.buyers.map((b, bi) => (
+                              <div key={bi} style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+                                <span>{b.userName}</span>
+                                <span>{b.quantity} порц. (₽{b.subtotal.toLocaleString('ru-RU', {minimumFractionDigits: 2})})</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
 
