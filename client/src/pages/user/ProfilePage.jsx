@@ -53,12 +53,18 @@ export default function ProfilePage() {
         <div className="profile-balance-amount">
           ₽{balance.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16, border: '2px solid var(--primary)', borderRadius: 'var(--radius)' }}>
+        <h3 style={{ marginBottom: 8, textAlign: 'center' }}>Пополнение баланса</h3>
+        <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.9rem' }}>
+          Переведите деньги и сообщите администратору
+        </p>
         <button 
-          className="btn btn-primary" 
-          style={{ marginTop: 12 }}
+          className="btn btn-primary btn-block" 
           onClick={() => setShowPaymentModal(true)}
         >
-          Пополнить баланс
+          Пополнить
         </button>
       </div>
 
