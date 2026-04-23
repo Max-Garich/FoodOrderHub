@@ -65,6 +65,8 @@ export const adminApi = {
     request(`/admin/users/${id}/subtract`, { method: 'POST', body: JSON.stringify({ amount, comment }) }, true),
   userBalanceHistory: (id) => request(`/admin/users/${id}/balance-history`, {}, true),
   deleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }, true),
+  resetPassword: (id, newPassword) =>
+    request(`/admin/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) }, true),
   updateUserRole: (id, isAdmin) => request(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ isAdmin }) }, true),
 
   menuItems: () => request('/admin/menu/items', {}, true),

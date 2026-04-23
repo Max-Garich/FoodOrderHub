@@ -15,6 +15,9 @@ export default function AdminUsers() {
   const [topupLoading, setTopupLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [balanceFilter, setBalanceFilter] = useState('all'); // all, zero, positive
+  const [resetUser, setResetUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -83,6 +86,25 @@ export default function AdminUsers() {
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 4) {
+      showToast('Пароль должен быть не менее 4 символов', 'error');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await adminApi.resetPassword(resetUser.id, newPassword);
+      showToast('✅ Пароль успешно изменён');
+      setResetUser(null);
+      setNewPassword('');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) ||
                          u.email.toLowerCase().includes(search.toLowerCase());
@@ -136,9 +158,6 @@ export default function AdminUsers() {
               <div className="user-info">
                 <h3>{user.name}</h3>
                 <p>{user.email}</p>
-                {isSuperAdmin && user.passwordPlain && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 2 }}>🔑 {user.passwordPlain}</p>
-                )}
                 {isSuperAdmin && (
                   <div style={{ marginTop: 8 }}>
                     <label style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
@@ -166,6 +185,9 @@ export default function AdminUsers() {
                 </button>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)', padding: 0 }} onClick={() => handleDeleteUser(user.id)}>
                   🗑️ Удалить
+                </button>
+                <button className="btn btn-ghost btn-sm" style={{ padding: 0 }} onClick={() => setResetUser(user)}>
+                  🔑 Пароль
                 </button>
               </div>
             </div>
@@ -233,6 +255,45 @@ export default function AdminUsers() {
                 </button>
                 <button className="btn btn-primary" style={topupMode === 'subtract' ? {background: 'var(--danger)'} : {}} type="submit" disabled={topupLoading}>
                   {topupLoading ? 'Обработка...' : topupMode === 'add' ? 'Пополнить ✓' : 'Списать ✓'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetUser && (
+        <div className="modal-overlay modal-center" onClick={() => setResetUser(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginBottom: 4 }}>Смена пароля</h2>
+            <p className="text-muted" style={{ marginBottom: 16 }}>{resetUser.name}</p>
+
+            <form onSubmit={handleResetPassword}>
+              <div className="input-group">
+                <label>Новый пароль</label>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Введите новый пароль"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  autoFocus
+                  minLength={4}
+                />
+              </div>
+
+              <p className="text-sm text-muted" style={{ marginBottom: 16 }}>
+                Минимум 4 символа
+              </p>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn btn-outline" type="button" style={{ flex: 1 }} onClick={() => { setResetUser(null); setNewPassword(''); }}>
+                  Отмена
+                </button>
+                <button className="btn btn-primary" type="submit" disabled={resetLoading}>
+                  {resetLoading ? 'Сохранение...' : 'Сохранить'}
                 </button>
               </div>
             </form>

@@ -252,4 +252,29 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/users/:id/reset-password
+router.post('/:id/reset-password', async (req, res) => {
+  try {
+    const prisma = req.app.locals.prisma;
+    const { newPassword } = req.body;
+    const userId = parseInt(req.params.id);
+
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: 'Пароль должен быть не менее 4 символов' });
+    }
+
+    const passwordHash = await require('bcryptjs').hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    res.json({ message: 'Пароль успешно изменён' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 export default router;
