@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { adminAuthMiddleware } from '../../middleware/auth.js';
 
 const router = Router();
@@ -263,7 +264,7 @@ router.post('/:id/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Пароль должен быть не менее 4 символов' });
     }
 
-    const passwordHash = await require('bcryptjs').hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
       where: { id: userId },
