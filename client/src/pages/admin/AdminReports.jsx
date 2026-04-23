@@ -12,6 +12,7 @@ export default function AdminReports() {
   const [editQty, setEditQty] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editLoading, setEditLoading] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState({});
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -60,6 +61,10 @@ export default function AdminReports() {
   const formatDateLabel = () => {
     const d = new Date(date + 'T12:00:00');
     return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const toggleOrder = (orderId) => {
+    setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
   return (
@@ -151,26 +156,46 @@ export default function AdminReports() {
                       padding: '10px 0',
                       borderBottom: '1px solid var(--border)',
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontWeight: 600 }}>{order.userName}</span>
-                        <span className="text-sm text-muted">
-                          {new Date(order.time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          cursor: 'pointer',
+                          marginBottom: expandedOrders[order.orderId] ? 4 : 0
+                        }}
+                        onClick={() => toggleOrder(order.orderId)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ 
+                            transform: expandedOrders[order.orderId] ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s',
+                            fontSize: '1.2rem'
+                          }}>▶</span>
+                          <span style={{ fontWeight: 600 }}>{order.userName}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span className="text-sm text-muted">
+                            {new Date(order.time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                            ₽{order.total.toLocaleString('ru-RU', {minimumFractionDigits: 2})}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm" style={{ marginBottom: 4 }}>
-                        {order.items.map((item, i) => (
-                          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0' }}>
-                            <span>
-                              {item.itemName} ×{item.quantity} 
-                              <span className="text-muted" style={{ marginLeft: 6 }}>₽{item.price.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</span>
-                            </span>
-                            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(order.orderId, item)}>✏️</button>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ fontWeight: 700, color: 'var(--primary)' }}>
-                        ₽{order.total.toLocaleString('ru-RU', {minimumFractionDigits: 2})}
-                      </div>
+                      {expandedOrders[order.orderId] && (
+                        <div className="text-sm" style={{ marginLeft: 28, paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
+                          {order.items.map((item, i) => (
+                            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0' }}>
+                              <span>
+                                {item.itemName} ×{item.quantity} 
+                                <span className="text-muted" style={{ marginLeft: 6 }}>₽{item.price.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</span>
+                              </span>
+                              <button className="btn btn-ghost btn-sm" onClick={() => startEdit(order.orderId, item)}>✏️</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
