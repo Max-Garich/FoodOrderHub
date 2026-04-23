@@ -22,14 +22,14 @@ const app = express();
 const prisma = new PrismaClient();
 
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 60 * 60 * 1000,
+  max: 1000,
   message: { error: 'Слишком много запросов, попробуйте позже' },
 });
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: 60 * 60 * 1000,
+  max: 100,
   message: { error: 'Слишком много попыток входа, попробуйте позже' },
 });
 
