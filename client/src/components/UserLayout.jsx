@@ -57,7 +57,13 @@ export default function UserLayout() {
           <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: '1.25rem' }} onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
-          <div className="balance-display" onClick={() => setShowPaymentModal(true)} style={{ cursor: 'pointer' }}>
+          <div className="balance-display" onClick={() => setShowPaymentModal(true)} style={{ 
+              cursor: 'pointer',
+              border: '2px solid var(--primary)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '6px 12px',
+              background: 'var(--bg-card)'
+            }}>
             <span>₽{balance.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}</span>
           </div>
         </div>
