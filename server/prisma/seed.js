@@ -52,16 +52,15 @@ async function main() {
 
   // Create a test user
   const userPassword = await bcrypt.hash('user123', 10);
-  const user = await prisma.user.upsert({
-    where: { email: 'test@example.com' },
-    update: {},
-    create: {
-      email: 'test@example.com',
-      name: 'Тестовый Пользователь',
-      passwordHash: userPassword,
-      passwordPlain: 'user123',
-    },
-  });
+const user = await prisma.user.upsert({
+      where: { email: 'test@example.com' },
+      update: {},
+      create: {
+        email: 'test@example.com',
+        name: 'Тестовый Пользователь',
+        passwordHash: userPassword,
+      },
+    });
 
   // Create balance for test user
   await prisma.balance.upsert({

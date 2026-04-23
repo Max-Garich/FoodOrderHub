@@ -16,7 +16,6 @@ router.get('/', async (req, res) => {
         name: true,
         phone: true,
         createdAt: true,
-        passwordPlain: true,
         balance: { select: { amount: true } },
       },
       orderBy: { name: 'asc' },
@@ -31,7 +30,6 @@ router.get('/', async (req, res) => {
         balance: u.balance ? u.balance.amount : 0,
         isAdmin: adminEmails.has(u.email)
       };
-      if (!req.isSuperAdmin) delete data.passwordPlain;
       return data;
     });
 
