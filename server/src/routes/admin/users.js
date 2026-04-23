@@ -257,6 +257,8 @@ router.post('/:id/reset-password', async (req, res) => {
     const { newPassword } = req.body;
     const userId = parseInt(req.params.id);
 
+    console.log('Reset password for user:', userId, 'newPassword:', newPassword ? 'yes' : 'no');
+
     if (!newPassword || newPassword.length < 4) {
       return res.status(400).json({ error: 'Пароль должен быть не менее 4 символов' });
     }
@@ -268,10 +270,11 @@ router.post('/:id/reset-password', async (req, res) => {
       data: { passwordHash },
     });
 
+    console.log('Password updated for user:', userId);
     res.json({ message: 'Пароль успешно изменён' });
   } catch (err) {
     console.error('Reset password error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Ошибка сервера: ' + err.message });
   }
 });
 
