@@ -1,10 +1,37 @@
 import { Router } from 'express';
-import { adminAuthMiddleware } from '../../middleware/auth.js';
+import { z } from 'zod';
+import { requireAuth, requireRole } from '../../middleware/auth.js';
 
 const router = Router();
-router.use(adminAuthMiddleware);
+router.use(requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN'));
 
-// GET /api/admin/menu/items - справочник блюд
+function zodErrorMessage(err) {
+  const issue = err.issues?.[0];
+  return issue ? issue.message : 'Некорректные данные';
+}
+
+const dailySchema = z.object({
+  itemName: z.string().min(1, 'Название обязательно'),
+  price: z.coerce.number().positive('Цена должна быть положительной'),
+  category: z.string().optional(),
+  maxQuantity: z.coerce.number({ invalid_type_error: 'Лимит порций обязателен' })
+    .int('Лимит порций должен быть целым числом')
+    .min(0, 'Лимит порций не может быть отрицательным'),
+  menuItemId: z.coerce.number().int().positive().optional().nullable(),
+});
+
+const catalogSchema = z.object({
+  name: z.string().min(1, 'Название обязательно'),
+  description: z.string().optional().nullable(),
+  defaultPrice: z.coerce.number().positive().optional().nullable(),
+  category: z.string().optional(),
+});
+
+// ═══════════════════════════════════════════════
+// Справочник блюд
+// ═══════════════════════════════════════════════
+
+// GET /api/canteen/menu/items
 router.get('/items', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
@@ -19,22 +46,22 @@ router.get('/items', async (req, res) => {
   }
 });
 
-// POST /api/admin/menu/items - создать блюдо в справочнике
+// POST /api/canteen/menu/items
 router.post('/items', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
-    const { name, description, defaultPrice, category } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ error: 'Название обязательно' });
+    const parsed = catalogSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: zodErrorMessage(parsed.error) });
     }
+    const { name, description, defaultPrice, category } = parsed.data;
 
     const item = await prisma.menuItem.create({
-      data: { 
-        name, 
+      data: {
+        name,
         description: description || null,
-        category: category || "Прочее",
-        defaultPrice: defaultPrice ? parseFloat(defaultPrice) : null,
+        category: category || 'Прочее',
+        defaultPrice: defaultPrice ?? null,
       },
     });
 
@@ -45,17 +72,16 @@ router.post('/items', async (req, res) => {
   }
 });
 
-// PUT /api/admin/menu/items/:id
+// PUT /api/canteen/menu/items/:id
 router.put('/items/:id', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
     const { name, description, defaultPrice, category } = req.body;
 
-    const data = {
-      name, 
-      description,
-      defaultPrice: defaultPrice ? parseFloat(defaultPrice) : null,
-    };
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (description !== undefined) data.description = description;
+    if (defaultPrice !== undefined) data.defaultPrice = defaultPrice === null ? null : parseFloat(defaultPrice);
     if (category !== undefined) data.category = category;
 
     const item = await prisma.menuItem.update({
@@ -70,7 +96,7 @@ router.put('/items/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/menu/items/:id
+// DELETE /api/canteen/menu/items/:id
 router.delete('/items/:id', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
@@ -85,7 +111,11 @@ router.delete('/items/:id', async (req, res) => {
   }
 });
 
-// GET /api/admin/menu/daily - menu for current/latest session
+// ═══════════════════════════════════════════════
+// Ежедневное меню
+// ═══════════════════════════════════════════════
+
+// GET /api/canteen/menu/daily — меню текущей/последней сессии
 router.get('/daily', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
@@ -96,7 +126,6 @@ router.get('/daily', async (req, res) => {
     });
 
     if (!session) {
-      // get the latest session
       session = await prisma.orderSession.findFirst({
         orderBy: { id: 'desc' },
         include: { dailyMenus: { orderBy: { createdAt: 'asc' } } },
@@ -105,13 +134,12 @@ router.get('/daily', async (req, res) => {
 
     res.json({
       session: session
-        ? {
-            id: session.id,
-            sessionDate: session.sessionDate,
-            isActive: session.isActive,
-          }
+        ? { id: session.id, sessionDate: session.sessionDate, isActive: session.isActive }
         : null,
-      items: session?.dailyMenus || [],
+      items: (session?.dailyMenus || []).map((m) => ({
+        ...m,
+        remaining: m.maxQuantity - m.orderedQuantity,
+      })),
     });
   } catch (err) {
     console.error('Daily menu error:', err);
@@ -119,28 +147,23 @@ router.get('/daily', async (req, res) => {
   }
 });
 
-// POST /api/admin/menu/daily - add item to current session menu
+// POST /api/canteen/menu/daily — позиция основного меню (maxQuantity обязателен)
 router.post('/daily', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
-    const { menuItemId, itemName, price, category } = req.body;
-
-    if (!itemName || price === undefined || price === null) {
-      return res.status(400).json({ error: 'Название и цена обязательны' });
+    const parsed = dailySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: zodErrorMessage(parsed.error) });
     }
+    const { menuItemId, itemName, price, category, maxQuantity } = parsed.data;
 
-    if (price <= 0) {
-      return res.status(400).json({ error: 'Цена должна быть положительной' });
-    }
-
-    // Find or create a session for today
+    // Найти активную сессию или черновик на сегодня
     const today = new Date().toISOString().split('T')[0];
     let session = await prisma.orderSession.findFirst({
       where: { isActive: true },
     });
 
     if (!session) {
-      // Create a new draft session (not active yet)
       session = await prisma.orderSession.findFirst({
         where: { sessionDate: today, isActive: false, endedAt: null },
       });
@@ -148,7 +171,7 @@ router.post('/daily', async (req, res) => {
       if (!session) {
         session = await prisma.orderSession.create({
           data: {
-            adminId: req.adminId,
+            createdByUserId: req.user.id,
             sessionDate: today,
             isActive: false,
           },
@@ -161,8 +184,10 @@ router.post('/daily', async (req, res) => {
         sessionId: session.id,
         menuItemId: menuItemId || null,
         itemName,
-        category: category || "Прочее",
+        category: category || 'Прочее',
         price,
+        maxQuantity,
+        isAdditional: false,
       },
     });
 
@@ -173,20 +198,75 @@ router.post('/daily', async (req, res) => {
   }
 });
 
-// PUT /api/admin/menu/daily/:id
+// POST /api/canteen/menu/additional — доп-меню (только при активной сессии)
+router.post('/additional', async (req, res) => {
+  try {
+    const prisma = req.app.locals.prisma;
+    const parsed = dailySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: zodErrorMessage(parsed.error) });
+    }
+    const { menuItemId, itemName, price, category, maxQuantity } = parsed.data;
+
+    const activeSession = await prisma.orderSession.findFirst({
+      where: { isActive: true },
+    });
+    if (!activeSession) {
+      return res.status(403).json({ error: 'Доп-меню можно добавлять только во время активной сессии заказов' });
+    }
+
+    const dailyMenu = await prisma.dailyMenu.create({
+      data: {
+        sessionId: activeSession.id,
+        menuItemId: menuItemId || null,
+        itemName,
+        category: category || 'Прочее',
+        price,
+        maxQuantity,
+        isAdditional: true,
+      },
+    });
+
+    res.status(201).json(dailyMenu);
+  } catch (err) {
+    console.error('Add additional menu error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// PUT /api/canteen/menu/daily/:id — обновление позиции
 router.put('/daily/:id', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
-    const { itemName, price, isAvailable, category } = req.body;
+    const { itemName, price, isAvailable, category, maxQuantity } = req.body;
+
+    const existing = await prisma.dailyMenu.findUnique({
+      where: { id: parseInt(req.params.id) },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Позиция не найдена' });
+    }
+
+    // Запрет снижения лимита ниже уже заказанного
+    if (maxQuantity !== undefined && maxQuantity !== null) {
+      const newMax = parseInt(maxQuantity);
+      if (Number.isNaN(newMax) || newMax < 0) {
+        return res.status(400).json({ error: 'Лимит порций должен быть целым числом ≥ 0' });
+      }
+      if (newMax < existing.orderedQuantity) {
+        return res.status(409).json({ error: 'Нельзя установить лимит ниже уже заказанного количества' });
+      }
+    }
 
     const data = {};
     if (itemName !== undefined) data.itemName = itemName;
     if (category !== undefined) data.category = category;
-    if (price !== undefined) data.price = price;
+    if (price !== undefined) data.price = parseFloat(price);
     if (isAvailable !== undefined) data.isAvailable = isAvailable;
+    if (maxQuantity !== undefined && maxQuantity !== null) data.maxQuantity = parseInt(maxQuantity);
 
     const item = await prisma.dailyMenu.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id: existing.id },
       data,
     });
 
@@ -197,28 +277,25 @@ router.put('/daily/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/menu/daily/:id
+// DELETE /api/canteen/menu/daily/:id — скрытие при наличии заказов
 router.delete('/daily/:id', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
+    const id = parseInt(req.params.id);
 
-    // Check no orders reference this item
     const orderItems = await prisma.orderItem.findFirst({
-      where: { dailyMenuId: parseInt(req.params.id) },
+      where: { dailyMenuId: id },
     });
 
     if (orderItems) {
-      // Just mark as unavailable instead of deleting
       await prisma.dailyMenu.update({
-        where: { id: parseInt(req.params.id) },
+        where: { id },
         data: { isAvailable: false },
       });
       return res.json({ message: 'Позиция скрыта (есть связанные заказы)' });
     }
 
-    await prisma.dailyMenu.delete({
-      where: { id: parseInt(req.params.id) },
-    });
+    await prisma.dailyMenu.delete({ where: { id } });
     res.json({ message: 'Позиция удалена' });
   } catch (err) {
     console.error('Delete daily menu error:', err);

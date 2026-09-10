@@ -1,22 +1,96 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
 import { generateToken } from '../middleware/auth.js';
 
 const router = Router();
 
-// POST /api/auth/register
+const CYRILLIC = /^[А-ЯЁа-яё]+(?:[ -][А-ЯЁа-яё]+)*$/;
+
+const registerSchema = z.object({
+  name: z.string().regex(CYRILLIC, 'Имя должно содержать только кириллицу'),
+  surname: z.string().regex(CYRILLIC, 'Фамилия должна содержать только кириллицу'),
+  email: z.string().email('Некорректный email'),
+  password: z.string().min(4, 'Пароль должен быть не менее 4 символов'),
+  groupId: z.coerce.number({ invalid_type_error: 'Выберите группу' }).int().positive('Выберите группу'),
+});
+
+const teacherSchema = z.object({
+  name: z.string().regex(CYRILLIC, 'Имя должно содержать только кириллицу'),
+  surname: z.string().regex(CYRILLIC, 'Фамилия должна содержать только кириллицу'),
+  email: z.string().email('Некорректный email'),
+  password: z.string().min(4, 'Пароль должен быть не менее 4 символов'),
+  position: z.string().regex(CYRILLIC, 'Должность должна содержать только кириллицу'),
+});
+
+function zodErrorMessage(err) {
+  const issue = err.issues?.[0];
+  return issue ? issue.message : 'Некорректные данные';
+}
+
+// POST /api/auth/register — регистрация юзера (выбирает группу, ждёт приёма менеджером)
 router.post('/register', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
-    const { email, password, name, phone } = req.body;
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: zodErrorMessage(parsed.error) });
+    }
+    const { name, surname, email, password, groupId } = parsed.data;
 
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, пароль и имя обязательны' });
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ error: 'Пользователь с таким email уже существует' });
     }
 
-    if (password.length < 4) {
-      return res.status(400).json({ error: 'Пароль должен быть не менее 4 символов' });
+    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!group || !group.isActive) {
+      return res.status(400).json({ error: 'Группа не найдена или недоступна' });
     }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name,
+        surname,
+        role: 'USER',
+        status: 'PENDING',
+        groupId,
+        balance: { create: { amount: 0 } },
+      },
+    });
+
+    const token = generateToken({ id: user.id, role: user.role, status: user.status, groupId: user.groupId });
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        groupId: user.groupId,
+      },
+    });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/auth/register-teacher — регистрация преподавателя (принимает только супер-админ)
+router.post('/register-teacher', async (req, res) => {
+  try {
+    const prisma = req.app.locals.prisma;
+    const parsed = teacherSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: zodErrorMessage(parsed.error) });
+    }
+    const { name, surname, email, password, position } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -25,27 +99,40 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { email, passwordHash, name, phone: phone || null },
+      data: {
+        email,
+        passwordHash,
+        name,
+        surname,
+        position,
+        role: 'TEACHER',
+        status: 'PENDING',
+        // Без Balance и без groupId
+      },
     });
 
-    // Create balance record
-    await prisma.balance.create({
-      data: { userId: user.id, amount: 0 },
-    });
-
-    const token = generateToken({ id: user.id, email: user.email, role: 'user' });
+    const token = generateToken({ id: user.id, role: user.role, status: user.status, groupId: null });
 
     res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, name: user.name },
+      user: {
+        id: user.id,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        groupId: null,
+        position: user.position,
+      },
     });
   } catch (err) {
-    console.error('Register error:', err);
+    console.error('Register teacher error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
-// POST /api/auth/login
+// POST /api/auth/login — единый вход для всех ролей
 router.post('/login', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
@@ -56,8 +143,12 @@ router.post('/login', async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
+    if (!user || user.isDeleted) {
       return res.status(401).json({ error: 'Неверный email или пароль' });
+    }
+
+    if (user.status === 'REJECTED') {
+      return res.status(403).json({ error: 'Аккаунт отклонён' });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -65,49 +156,28 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Неверный email или пароль' });
     }
 
-    const token = generateToken({ id: user.id, email: user.email, role: 'user' });
+    const token = generateToken({
+      id: user.id,
+      role: user.role,
+      status: user.status,
+      groupId: user.groupId,
+    });
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name },
+      user: {
+        id: user.id,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        groupId: user.groupId,
+        position: user.position,
+      },
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
-// POST /api/auth/admin/login
-router.post('/admin/login', async (req, res) => {
-  try {
-    const prisma = req.app.locals.prisma;
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email и пароль обязательны' });
-    }
-
-    const admin = await prisma.admin.findUnique({ where: { email } });
-    if (!admin || !admin.isActive) {
-      console.warn(`[Login] Admin not found or inactive: ${email}`);
-      return res.status(401).json({ error: 'Неверный email или пароль' });
-    }
-
-    const valid = await bcrypt.compare(password, admin.passwordHash);
-    if (!valid) {
-      console.warn(`[Login] Invalid password for admin: ${email}`);
-      return res.status(401).json({ error: 'Неверный email или пароль' });
-    }
-
-    console.log(`[Login] Admin logged in successfully: ${email}`);
-    const token = generateToken({ id: admin.id, email: admin.email, role: 'admin', isSuperAdmin: admin.isSuperAdmin });
-
-    res.json({
-      token,
-      admin: { id: admin.id, email: admin.email, name: admin.name, isSuperAdmin: admin.isSuperAdmin },
-    });
-  } catch (err) {
-    console.error('Admin login error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });

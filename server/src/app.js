@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import menuRoutes from './routes/menu.js';
 import orderRoutes from './routes/orders.js';
+import groupRoutes, { teachersRouter } from './routes/groups.js';
 import adminUserRoutes from './routes/admin/users.js';
 import adminMenuRoutes from './routes/admin/menu.js';
 import adminSessionRoutes from './routes/admin/sessions.js';
@@ -60,12 +61,26 @@ app.use('/api/user', generalLimiter, userRoutes);
 app.use('/api/menu', generalLimiter, menuRoutes);
 app.use('/api/orders', generalLimiter, orderRoutes);
 
-// Admin routes
-app.use('/api/admin/users', generalLimiter, adminUserRoutes);
-app.use('/api/admin/menu', generalLimiter, adminMenuRoutes);
+// Groups (public list + admin CRUD + manager payment)
+app.use('/api', generalLimiter, groupRoutes);
+
+// Teachers (super admin)
+app.use('/api', generalLimiter, teachersRouter);
+
+// Manager / admin users, requests, roles
+app.use('/api', generalLimiter, adminUserRoutes);
+
+// Canteen menu (daily + additional + catalog)
+app.use('/api/canteen/menu', generalLimiter, adminMenuRoutes);
+
+// Sessions (start/stop/current/list)
 app.use('/api/admin/sessions', generalLimiter, adminSessionRoutes);
-app.use('/api/admin/reports', generalLimiter, adminReportRoutes);
-app.use('/api/admin/orders', generalLimiter, adminOrderRoutes);
+
+// Canteen reports
+app.use('/api/canteen/reports', generalLimiter, adminReportRoutes);
+
+// Manager order editing
+app.use('/api/manager/orders', generalLimiter, adminOrderRoutes);
  
 // Serve static files from the React app
 const clientDistPath = path.join(__dirname, '../../client/dist');

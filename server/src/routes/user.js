@@ -1,25 +1,42 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
-router.use(authMiddleware);
 
-// GET /api/user/profile
-router.get('/profile', async (req, res) => {
+// GET /api/user/profile — доступен и PENDING-юзерам (poll статуса)
+router.get('/profile', requireAuth, async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
     const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { id: true, email: true, name: true, phone: true, createdAt: true },
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        name: true,
+        surname: true,
+        email: true,
+        role: true,
+        status: true,
+        position: true,
+        groupId: true,
+        group: { select: { id: true, name: true, paymentPhone: true, paymentBank: true } },
+        balance: { select: { amount: true } },
+      },
     });
 
-    const balance = await prisma.balance.findUnique({
-      where: { userId: req.userId },
-    });
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
 
     res.json({
-      ...user,
-      balance: balance ? balance.amount : 0,
+      id: user.id,
+      name: user.name,
+      surname: user.surname,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      position: user.position,
+      group: user.group,
+      balance: user.balance ? user.balance.amount : null,
     });
   } catch (err) {
     console.error('Profile error:', err);
@@ -27,15 +44,18 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-// GET /api/user/balance
-router.get('/balance', async (req, res) => {
+// GET /api/user/balance — у преподавателя balance: null, hasBalance: false
+router.get('/balance', requireAuth, async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
     const balance = await prisma.balance.findUnique({
-      where: { userId: req.userId },
+      where: { userId: req.user.id },
     });
 
-    res.json({ balance: balance ? balance.amount : 0 });
+    res.json({
+      balance: balance ? balance.amount : null,
+      hasBalance: !!balance,
+    });
   } catch (err) {
     console.error('Balance error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -43,11 +63,11 @@ router.get('/balance', async (req, res) => {
 });
 
 // GET /api/user/balance-history
-router.get('/balance-history', async (req, res) => {
+router.get('/balance-history', requireAuth, async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
     const history = await prisma.balanceHistory.findMany({
-      where: { userId: req.userId },
+      where: { userId: req.user.id },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });

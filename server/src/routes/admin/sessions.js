@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { adminAuthMiddleware } from '../../middleware/auth.js';
+import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { updateSessionSummary } from '../../utils/reports.js';
 
 const router = Router();
-router.use(adminAuthMiddleware);
+router.use(requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN'));
 
 // GET /api/admin/sessions/current
 router.get('/current', async (req, res) => {

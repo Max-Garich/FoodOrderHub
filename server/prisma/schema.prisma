@@ -7,37 +7,64 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           Int              @id @default(autoincrement())
-  email        String           @unique
-  phone        String?
-  passwordHash String           @map("password_hash")
-  name         String
-  isDeleted    Boolean          @default(false) @map("is_deleted")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
+// ═══════════════════════════════════════════════
+// Роли: USER (юзер), TEACHER (препод, без баланса),
+// MANAGER (менеджер группы), CANTEEN_HEAD (глава столовой),
+// SUPER_ADMIN (главный админ)
+// ═══════════════════════════════════════════════
+enum Role {
+  USER
+  TEACHER
+  MANAGER
+  CANTEEN_HEAD
+  SUPER_ADMIN
+}
 
+// Статус заявки: PENDING (ждёт приёма), ACTIVE (принят), REJECTED (отклонён)
+enum Status {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+model Group {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  paymentPhone String   @map("payment_phone")
+  paymentBank  String   @map("payment_bank")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  users  User[]
+  orders Order[]
+
+  @@map("groups")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  phone        String?
+  passwordHash String   @map("password_hash")
+  name         String
+  surname      String
+  role         Role     @default(USER)
+  status       Status   @default(PENDING)
+  position     String? // должность преподавателя
+  groupId      Int?     @map("group_id")
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  group          Group?          @relation(fields: [groupId], references: [id])
   balance        Balance?
   orders         Order[]
   balanceHistory BalanceHistory[]
   favorites      Favorite[]
+  topups         BalanceHistory[] @relation("BalanceHistoryManager")
+  sessionsCreated OrderSession[] @relation("SessionCreator")
 
   @@map("users")
-}
-
-model Admin {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  name         String
-  isSuperAdmin Boolean  @default(false) @map("is_superadmin")
-  isActive     Boolean  @default(true)  @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  balanceHistory BalanceHistory[]
-  orderSessions  OrderSession[]
-
-  @@map("admins")
 }
 
 model Balance {
@@ -54,28 +81,28 @@ model Balance {
 model BalanceHistory {
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
-  adminId      Int?     @map("admin_id")
+  managerId    Int?     @map("manager_id")
   amount       Float
-  type         String   // "topup" | "order_debit"
+  type         String // "topup" | "order_debit" | "admin_subtract" | "admin_order_correction"
   balanceAfter Float    @map("balance_after")
   orderId      Int?     @map("order_id")
   comment      String?
   createdAt    DateTime @default(now()) @map("created_at")
 
-  user  User   @relation(fields: [userId], references: [id])
-  admin Admin? @relation(fields: [adminId], references: [id])
+  user    User  @relation(fields: [userId], references: [id])
+  manager User? @relation("BalanceHistoryManager", fields: [managerId], references: [id])
 
   @@map("balance_history")
 }
 
 model MenuItem {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  category    String?  @default("Прочее")
+  id           Int      @id @default(autoincrement())
+  name         String
+  description  String?
+  category     String?  @default("Прочее")
   defaultPrice Float?   @map("default_price")
   isDeleted    Boolean  @default(false) @map("is_deleted")
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   dailyMenus DailyMenu[]
   favorites  Favorite[]
@@ -84,14 +111,17 @@ model MenuItem {
 }
 
 model DailyMenu {
-  id         Int      @id @default(autoincrement())
-  sessionId  Int      @map("session_id")
-  menuItemId Int?     @map("menu_item_id")
-  itemName   String   @map("item_name")
-  category   String?  @default("Прочее")
-  price      Float
-  isAvailable Boolean @default(true) @map("is_available")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  sessionId       Int      @map("session_id")
+  menuItemId      Int?     @map("menu_item_id")
+  itemName        String   @map("item_name")
+  category        String?  @default("Прочее")
+  price           Float
+  maxQuantity     Int      @map("max_quantity") // лимит порций, общий для всех групп
+  orderedQuantity Int      @default(0) @map("ordered_quantity") // сколько уже куплено
+  isAdditional    Boolean  @default(false) @map("is_additional") // доп-меню
+  isAvailable     Boolean  @default(true) @map("is_available")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   session    OrderSession @relation(fields: [sessionId], references: [id])
   menuItem   MenuItem?    @relation(fields: [menuItemId], references: [id])
@@ -101,15 +131,15 @@ model DailyMenu {
 }
 
 model OrderSession {
-  id          Int       @id @default(autoincrement())
-  adminId     Int       @map("admin_id")
-  sessionDate String    @map("session_date") // YYYY-MM-DD
-  isActive    Boolean   @default(false) @map("is_active")
-  startedAt   DateTime? @map("started_at")
-  endedAt     DateTime? @map("ended_at")
-  summaryJson String?   @map("summary_json")
+  id              Int       @id @default(autoincrement())
+  createdByUserId Int       @map("created_by_user_id")
+  sessionDate     String    @map("session_date") // YYYY-MM-DD
+  isActive        Boolean   @default(false) @map("is_active")
+  startedAt       DateTime? @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  summaryJson     String?   @map("summary_json")
 
-  admin      Admin       @relation(fields: [adminId], references: [id])
+  createdBy  User        @relation("SessionCreator", fields: [createdByUserId], references: [id])
   dailyMenus DailyMenu[]
   orders     Order[]
 
@@ -120,11 +150,13 @@ model Order {
   id          Int      @id @default(autoincrement())
   userId      Int      @map("user_id")
   sessionId   Int      @map("session_id")
+  groupId     Int?     @map("group_id") // null = заказ преподавателя
   totalAmount Float    @map("total_amount")
   createdAt   DateTime @default(now()) @map("created_at")
 
   user    User         @relation(fields: [userId], references: [id])
   session OrderSession @relation(fields: [sessionId], references: [id])
+  group   Group?       @relation(fields: [groupId], references: [id])
   items   OrderItem[]
 
   @@map("orders")
@@ -151,8 +183,8 @@ model Favorite {
   menuItemId Int      @map("menu_item_id")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  user       User     @relation(fields: [userId], references: [id])
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
 
   @@unique([userId, menuItemId])
   @@map("favorites")

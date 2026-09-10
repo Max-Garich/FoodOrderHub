@@ -5,8 +5,9 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Middleware: verify user JWT
-export function authMiddleware(req, res, next) {
+// Middleware: любой валидный JWT.
+// Кладёт req.user = { id, role, status, groupId }
+export function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Требуется авторизация' });
@@ -15,42 +16,48 @@ export function authMiddleware(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    if (payload.role !== 'user') {
+    if (!payload.id || !payload.role) {
+      return res.status(401).json({ error: 'Недействительный токен' });
+    }
+    req.user = {
+      id: payload.id,
+      role: payload.role,
+      status: payload.status,
+      groupId: payload.groupId ?? null,
+    };
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Недействительный токен' });
+  }
+}
+
+// Middleware: требует status === 'ACTIVE' (после requireAuth)
+export function requireActive(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Требуется авторизация' });
+  }
+  if (req.user.status !== 'ACTIVE') {
+    return res.status(403).json({ error: 'Ожидайте подтверждения аккаунта' });
+  }
+  next();
+}
+
+// Фабрика middleware: requireRole('MANAGER', 'SUPER_ADMIN') (после requireAuth)
+export function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Требуется авторизация' });
+    }
+    if (!roles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Доступ запрещён' });
     }
-    req.userId = payload.id;
-    req.userEmail = payload.email;
     next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Недействительный токен' });
-  }
+  };
 }
 
-// Middleware: verify admin JWT
-export function adminAuthMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Требуется авторизация' });
-  }
-
-  const token = authHeader.split(' ')[1];
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    if (payload.role !== 'admin') {
-      return res.status(403).json({ error: 'Доступ запрещён. Требуется роль администратора' });
-    }
-    req.adminId = payload.id;
-    req.adminEmail = payload.email;
-    req.isSuperAdmin = payload.isSuperAdmin;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Недействительный токен' });
-  }
-}
-
-// Generate JWT token
+// Generate JWT token (4h)
 export function generateToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '4h' });
 }
 
 export { JWT_SECRET };
