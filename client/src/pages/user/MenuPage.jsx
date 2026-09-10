@@ -3,7 +3,8 @@ import { menuApi, orderApi } from '../../api/index.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function MenuPage() {
-  const { balance, refreshBalance } = useAuth();
+  const { user, balance, refreshProfile } = useAuth();
+  const isTeacher = user?.role === 'TEACHER';
   const [menuData, setMenuData] = useState(null);
   const [quantities, setQuantities] = useState({});
   const [favorites, setFavorites] = useState(new Set());
@@ -17,7 +18,7 @@ export default function MenuPage() {
       const data = await menuApi.today();
       setMenuData(data);
       const q = {};
-      data.items.forEach((item) => (q[item.id] = 0));
+      [...(data.items || []), ...(data.additionalItems || [])].forEach((item) => (q[item.id] = 0));
       setQuantities(q);
       if (data.favorites) {
         setFavorites(new Set(data.favorites));
@@ -38,11 +39,12 @@ export default function MenuPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const updateQuantity = (id, delta) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [id]: Math.max(0, (prev[id] || 0) + delta),
-    }));
+  const updateQuantity = (item, delta) => {
+    const current = quantities[item.id] || 0;
+    // Не больше остатка порций
+    const max = item.remaining ?? Infinity;
+    const next = Math.min(max, Math.max(0, current + delta));
+    setQuantities((prev) => ({ ...prev, [item.id]: next }));
   };
 
   const toggleFav = async (e, menuItemId) => {
@@ -61,13 +63,17 @@ export default function MenuPage() {
     }
   };
 
-  const cartItems = menuData?.items.filter((item) => (quantities[item.id] || 0) > 0) || [];
+  const allItems = [
+    ...(menuData?.items || []),
+    ...(menuData?.additionalItems || []),
+  ];
+  const cartItems = allItems.filter((item) => (quantities[item.id] || 0) > 0);
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.price * quantities[item.id],
     0
   );
   const hasItems = cartItems.length > 0;
-  const canAfford = totalAmount <= balance + 100;
+  const canAfford = isTeacher || totalAmount <= (balance ?? 0) + 100;
   const isOrdering = menuData?.isOrderingActive;
 
   const handleOrder = async () => {
@@ -78,14 +84,15 @@ export default function MenuPage() {
         quantity: quantities[item.id],
       }));
       await orderApi.create(items);
-      await refreshBalance();
+      await refreshProfile();
       setShowConfirm(false);
       setQuantities((prev) => {
         const reset = {};
         Object.keys(prev).forEach((k) => (reset[k] = 0));
         return reset;
       });
-      showToast('✅ Заказ принят!');
+      showToast('Заказ принят');
+      loadMenu();
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -106,7 +113,7 @@ export default function MenuPage() {
     return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  // Group by category, and handle favorites pseudo-category
+  // Группировка по категориям + псевдо-категория избранного
   const categories = {};
   const favItems = [];
 
@@ -126,45 +133,68 @@ export default function MenuPage() {
   const otherCategories = Object.keys(categories).filter(c => !categoryOrder.includes(c));
   const sortedCategories = [...activeCategories, ...otherCategories];
 
-  const renderItem = (item) => (
-    <div className="card menu-card scale-on-hover" key={item.id} style={{ marginBottom: 8 }}>
-      <div className="menu-card-info" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        {item.menuItemId && (
-          <button 
-            className="btn btn-ghost" 
-            style={{ padding: '4px', fontSize: '1.25rem', color: favorites.has(item.menuItemId) ? 'var(--warning)' : 'var(--text-muted)' }}
-            onClick={(e) => toggleFav(e, item.menuItemId)}
-          >
-            {favorites.has(item.menuItemId) ? '★' : '☆'}
-          </button>
+  const CATEGORY_ICONS = {
+    'Супы': '🍲', 'Второе': '🍽️', 'Салаты': '🥗', 'Котлеты': '🍖',
+    'Булочки': '🥖', 'Напитки': '🥤', 'Прочее': '🍴',
+  };
+
+  const renderItem = (item) => {
+    const remaining = item.remaining ?? Infinity;
+    const soldOut = item.soldOut || remaining <= 0;
+    const lowStock = !soldOut && remaining <= 5;
+    return (
+      <div className="card menu-card" key={item.id} style={{ marginBottom: 8, opacity: soldOut ? 0.6 : 1 }}>
+        <div className="menu-card-info">
+          {item.menuItemId && (
+            <button
+              className="fav-btn"
+              style={{ color: favorites.has(item.menuItemId) ? 'var(--warning)' : 'var(--text-muted)' }}
+              onClick={(e) => toggleFav(e, item.menuItemId)}
+              aria-label="В избранное"
+            >
+              {favorites.has(item.menuItemId) ? '★' : '☆'}
+            </button>
+          )}
+          <div className="menu-card-text">
+            <div className="menu-card-name">{item.itemName}</div>
+            <div className="menu-card-price">₽{item.price.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</div>
+            <div style={{ marginTop: 4 }}>
+              {soldOut ? (
+                <span className="badge badge-danger">Закончилось</span>
+              ) : lowStock ? (
+                <span className="badge badge-warning">Осталось: {remaining}</span>
+              ) : (
+                <span className="badge badge-primary">Осталось: {remaining}</span>
+              )}
+            </div>
+          </div>
+        </div>
+        {isOrdering ? (
+          <div className="counter">
+            <button
+              className="counter-btn"
+              onClick={() => updateQuantity(item, -1)}
+              disabled={!quantities[item.id] || soldOut}
+            >
+              −
+            </button>
+            <span className="counter-value">{quantities[item.id] || 0}</span>
+            <button
+              className="counter-btn"
+              onClick={() => updateQuantity(item, 1)}
+              disabled={soldOut || (quantities[item.id] || 0) >= remaining}
+            >
+              +
+            </button>
+          </div>
+        ) : (
+          <span className="badge badge-danger animate-pulse-slow">Закрыто</span>
         )}
-        <div>
-          <div className="menu-card-name">{item.itemName}</div>
-          <div className="menu-card-price">₽{item.price.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</div>
-        </div>
       </div>
-      {isOrdering ? (
-        <div className="counter">
-          <button
-            className="counter-btn"
-            onClick={() => updateQuantity(item.id, -1)}
-            disabled={!quantities[item.id]}
-          >
-            −
-          </button>
-          <span className="counter-value">{quantities[item.id] || 0}</span>
-          <button
-            className="counter-btn"
-            onClick={() => updateQuantity(item.id, 1)}
-          >
-            +
-          </button>
-        </div>
-      ) : (
-        <span className="badge badge-danger animate-pulse-slow">Закрыто</span>
-      )}
-    </div>
-  );
+    );
+  };
+
+  const additionalItems = menuData?.additionalItems || [];
 
   return (
     <div className="page">
@@ -172,40 +202,39 @@ export default function MenuPage() {
 
       <div className="page-header">
         <div>
-          <h2>📋 Меню на сегодня</h2>
+          <h2>Меню на сегодня</h2>
           <p className="text-sm text-muted">{formatDate()}</p>
         </div>
       </div>
 
       {!isOrdering && (
         <div className="status-banner closed">
-          🔴 Приём заказов закрыт
+          Приём заказов закрыт
         </div>
       )}
 
-      {isOrdering && balance < 0 && (
-        <div className="status-banner" style={{ background: '#fee2e2', color: 'var(--danger)', marginBottom: '12px' }}>
-          ⚠️ Ваш баланс отрицательный, желательно пополнить счет
+      {isOrdering && !isTeacher && balance !== null && balance < 0 && (
+        <div className="status-banner" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', marginBottom: '12px' }}>
+          Ваш баланс отрицательный, желательно пополнить счёт
         </div>
       )}
 
       {isOrdering && (
         <div className="status-banner open">
-          🟢 Приём заказов открыт
+          Приём заказов открыт
         </div>
       )}
 
-      {(!menuData?.items || menuData.items.length === 0) ? (
+      {allItems.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🍽️</div>
           <p>Меню ещё не готово.<br />Загляните позже!</p>
         </div>
       ) : (
         <>
           {favItems.length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={{ marginBottom: 12, color: 'var(--warning)', display: 'flex', gap: 6 }}>
-                <span>★</span> Избранное
+              <h3 className="category-header" style={{ marginBottom: 12, color: 'var(--warning)' }}>
+                Избранное
               </h3>
               {favItems.map(renderItem)}
             </div>
@@ -213,10 +242,22 @@ export default function MenuPage() {
 
           {sortedCategories.map(cat => (
             <div key={cat} style={{ marginBottom: 24 }}>
-              <h3 style={{ marginBottom: 12, opacity: 0.8 }}>{cat}</h3>
+              <h3 className="category-header" style={{ marginBottom: 12 }}>
+                <span>{CATEGORY_ICONS[cat] || '🍴'}</span> {cat}
+              </h3>
               {categories[cat].map(renderItem)}
             </div>
           ))}
+
+          {/* Доп-меню */}
+          {additionalItems.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 className="category-header" style={{ marginBottom: 12 }}>
+                <span>🍴</span> Доп-меню
+              </h3>
+              {additionalItems.map(renderItem)}
+            </div>
+          )}
 
           {hasItems && isOrdering && (
             <>
@@ -228,7 +269,7 @@ export default function MenuPage() {
               </div>
               {!canAfford && (
                 <div className="cart-warning">
-                  ⚠️ Превышен лимит долга (нужно ещё ₽{(totalAmount - (balance + 100)).toLocaleString('ru-RU', {minimumFractionDigits: 2})})
+                  Превышен лимит долга (нужно ещё ₽{(totalAmount - ((balance ?? 0) + 100)).toLocaleString('ru-RU', {minimumFractionDigits: 2})})
                 </div>
               )}
               <button
@@ -236,7 +277,7 @@ export default function MenuPage() {
                 disabled={!canAfford}
                 onClick={() => setShowConfirm(true)}
               >
-                {canAfford ? '🚀 Оформить заказ' : '🔒 Пополните баланс'}
+                {canAfford ? 'Оформить заказ' : 'Пополните баланс'}
               </button>
             </div>
           </>
@@ -271,11 +312,13 @@ export default function MenuPage() {
               <span>₽{totalAmount.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</span>
             </div>
 
-            <div style={{
-              padding: '10px 0', fontSize: '0.9375rem', color: 'var(--text-secondary)'
-            }}>
-              Баланс после заказа: <strong>₽{(balance - totalAmount).toLocaleString('ru-RU', {minimumFractionDigits: 2})}</strong>
-            </div>
+            {!isTeacher && (
+              <div style={{
+                padding: '10px 0', fontSize: '0.9375rem', color: 'var(--text-secondary)'
+              }}>
+                Баланс после заказа: <strong>₽{((balance ?? 0) - totalAmount).toLocaleString('ru-RU', {minimumFractionDigits: 2})}</strong>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
               <button
@@ -291,7 +334,7 @@ export default function MenuPage() {
                 disabled={submitting}
                 onClick={handleOrder}
               >
-                {submitting ? 'Отправка...' : 'Подтвердить ✓'}
+                {submitting ? 'Отправка...' : 'Подтвердить'}
               </button>
             </div>
           </div>

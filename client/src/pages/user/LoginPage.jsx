@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/index.js';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useAuth, roleHome } from '../../context/AuthContext.jsx';
+import ThemeToggle from '../../components/ThemeToggle.jsx';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,12 +12,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
-
-  useEffect(() => {
-    if (remember) {
-      localStorage.setItem('rememberedEmail', email);
-    }
-  }, [email, remember]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('rememberedEmail');
@@ -38,7 +33,7 @@ export default function LoginPage() {
       } else {
         localStorage.removeItem('rememberedEmail');
       }
-      navigate('/');
+      navigate(roleHome(data.user));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -48,11 +43,12 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <ThemeToggle style={{ position: 'fixed', top: 20, right: 20, zIndex: 50 }} />
       <div className="login-card">
         <div className="login-logo">
           <div className="logo-icon">🍽️</div>
           <h1>FoodOrderHub</h1>
-          <p>Войдите в свой аккаунт</p>
+          <p>Пара парой, а обед по расписанию</p>
         </div>
 
         {error && <div className="login-error">{error}</div>}
@@ -67,6 +63,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoFocus
             />
           </div>
           <div className="input-group">
@@ -96,11 +93,6 @@ export default function LoginPage() {
 
         <div className="login-footer">
           Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
-        </div>
-        <div className="login-footer" style={{ marginTop: 8 }}>
-          <Link to="/admin/login" style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
-            Вход для администратора →
-          </Link>
         </div>
       </div>
     </div>

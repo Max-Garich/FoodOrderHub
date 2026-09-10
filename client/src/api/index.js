@@ -1,24 +1,30 @@
-const API_URL = '/api';
+import { mockRequest } from './mock.js';
 
-function getHeaders(isAdmin = false) {
-  const token = localStorage.getItem(isAdmin ? 'admin_token' : 'token');
+const API_URL = '/api';
+const USE_MOCK = true; // ⚠️ Временный режим без бэкенда. Когда сервер готов — поставь false и удали mock.js
+
+function getHeaders() {
+  const token = localStorage.getItem('token');
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
-async function request(path, options = {}, isAdmin = false) {
+async function request(path, options = {}) {
+  if (USE_MOCK) {
+    return mockRequest(path, options);
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { ...getHeaders(isAdmin), ...options.headers },
+    headers: { ...getHeaders(), ...options.headers },
   });
 
   if (res.status === 401) {
-    localStorage.removeItem(isAdmin ? 'admin_token' : 'token');
-    localStorage.removeItem(isAdmin ? 'admin_user' : 'user');
-    if (!isAdmin) window.location.href = '/login';
-    else window.location.href = '/admin/login';
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
     throw new Error('Unauthorized');
   }
 
@@ -27,65 +33,92 @@ async function request(path, options = {}, isAdmin = false) {
   return data;
 }
 
-// Auth
+// Auth — единый вход для всех ролей
 export const authApi = {
-  register: (body) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
-  adminLogin: (body) => request('/auth/admin/login', { method: 'POST', body: JSON.stringify(body) }),
+  register: (body) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+  registerTeacher: (body) => request('/auth/register-teacher', { method: 'POST', body: JSON.stringify(body) }),
 };
 
-// User
+// Публичные
+export const groupsApi = {
+  list: () => request('/groups'),
+};
+
+// Профиль юзера
 export const userApi = {
   profile: () => request('/user/profile'),
   balance: () => request('/user/balance'),
   balanceHistory: () => request('/user/balance-history'),
 };
 
-// Menu
+// Меню
 export const menuApi = {
   today: () => request('/menu/today'),
-  status: () => request('/menu/status'),
   toggleFavorite: (menuItemId) => request('/menu/favorites', { method: 'POST', body: JSON.stringify({ menuItemId }) }),
 };
 
-// Orders
+// Заказы
 export const orderApi = {
   create: (items) => request('/orders', { method: 'POST', body: JSON.stringify({ items }) }),
   history: (date) => request(`/orders/history${date ? `?date=${date}` : ''}`),
+  dates: (month) => request(`/orders/history/dates?month=${month}`),
   detail: (id) => request(`/orders/${id}`),
 };
 
-// Admin
-export const adminApi = {
-  users: () => request('/admin/users', {}, true),
-  user: (id) => request(`/admin/users/${id}`, {}, true),
+// Менеджер группы
+export const managerApi = {
+  requests: (groupId) => request(`/manager/requests${groupId ? `?groupId=${groupId}` : ''}`),
+  acceptRequest: (userId) => request(`/manager/requests/${userId}/accept`, { method: 'POST' }),
+  rejectRequest: (userId) => request(`/manager/requests/${userId}/reject`, { method: 'POST' }),
+  users: (groupId) => request(`/manager/users${groupId ? `?groupId=${groupId}` : ''}`),
   topup: (id, amount, comment) =>
-    request(`/admin/users/${id}/topup`, { method: 'POST', body: JSON.stringify({ amount, comment }) }, true),
+    request(`/manager/users/${id}/topup`, { method: 'POST', body: JSON.stringify({ amount, comment }) }),
   subtract: (id, amount, comment) =>
-    request(`/admin/users/${id}/subtract`, { method: 'POST', body: JSON.stringify({ amount, comment }) }, true),
-  userBalanceHistory: (id) => request(`/admin/users/${id}/balance-history`, {}, true),
-  deleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }, true),
-  resetPassword: (id, newPassword) =>
-    request(`/admin/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) }, true),
-  updateUserRole: (id, isAdmin) => request(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ isAdmin }) }, true),
-
-  menuItems: () => request('/admin/menu/items', {}, true),
-  createMenuItem: (body) => request('/admin/menu/items', { method: 'POST', body: JSON.stringify(body) }, true),
-  deleteCatalogItem: (id) => request(`/admin/menu/items/${id}`, { method: 'DELETE' }, true),
-
-  dailyMenu: () => request('/admin/menu/daily', {}, true),
-  addDailyItem: (body) => request('/admin/menu/daily', { method: 'POST', body: JSON.stringify(body) }, true),
-  updateDailyItem: (id, body) =>
-    request(`/admin/menu/daily/${id}`, { method: 'PUT', body: JSON.stringify(body) }, true),
-  deleteDailyItem: (id) => request(`/admin/menu/daily/${id}`, { method: 'DELETE' }, true),
-
-  currentSession: () => request('/admin/sessions/current', {}, true),
-  startSession: () => request('/admin/sessions/start', { method: 'POST' }, true),
-  stopSession: () => request('/admin/sessions/stop', { method: 'POST' }, true),
-  sessions: (date) => request(`/admin/sessions${date ? `?date=${date}` : ''}`, {}, true),
-
-  dailyReport: (date) => request(`/admin/reports/daily?date=${date}`, {}, true),
-  sessionSummary: (id) => request(`/admin/reports/summary/${id}`, {}, true),
+    request(`/manager/users/${id}/subtract`, { method: 'POST', body: JSON.stringify({ amount, comment }) }),
+  updatePayment: (paymentPhone, paymentBank, groupId) =>
+    request('/manager/group/payment', { method: 'PUT', body: JSON.stringify({ paymentPhone, paymentBank, ...(groupId ? { groupId } : {}) }) }),
   updateOrderItem: (orderId, itemId, payload) =>
-    request(`/admin/orders/${orderId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(payload) }, true),
+    request(`/manager/orders/${orderId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  groupOrders: (date, groupId) => {
+    const params = [];
+    if (date) params.push(`date=${date}`);
+    if (groupId) params.push(`groupId=${groupId}`);
+    return request(`/manager/orders${params.length ? `?${params.join('&')}` : ''}`);
+  },
+};
+
+// Глава столовой
+export const canteenApi = {
+  menuItems: () => request('/canteen/menu/items'),
+  createMenuItem: (body) => request('/canteen/menu/items', { method: 'POST', body: JSON.stringify(body) }),
+  deleteCatalogItem: (id) => request(`/canteen/menu/items/${id}`, { method: 'DELETE' }),
+
+  dailyMenu: () => request('/canteen/menu/daily'),
+  addDailyItem: (body) => request('/canteen/menu/daily', { method: 'POST', body: JSON.stringify(body) }),
+  updateDailyItem: (id, body) => request(`/canteen/menu/daily/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteDailyItem: (id) => request(`/canteen/menu/daily/${id}`, { method: 'DELETE' }),
+  addAdditionalItem: (body) => request('/canteen/menu/additional', { method: 'POST', body: JSON.stringify(body) }),
+
+  currentSession: () => request('/canteen/sessions/current'),
+  startSession: () => request('/canteen/sessions/start', { method: 'POST' }),
+  stopSession: () => request('/canteen/sessions/stop', { method: 'POST' }),
+
+  dailyReport: (date) => request(`/canteen/reports/daily?date=${date}`),
+};
+
+// Супер-админ
+export const adminApi = {
+  groups: () => request('/admin/groups'),
+  createGroup: (body) => request('/admin/groups', { method: 'POST', body: JSON.stringify(body) }),
+  updateGroup: (id, body) => request(`/admin/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteGroup: (id) => request(`/admin/groups/${id}`, { method: 'DELETE' }),
+
+  teachers: (date) => request(`/admin/teachers${date ? `?date=${date}` : ''}`),
+
+  users: () => request('/admin/users'),
+  setUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+  deleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+  resetPassword: (id, newPassword) =>
+    request(`/admin/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) }),
 };

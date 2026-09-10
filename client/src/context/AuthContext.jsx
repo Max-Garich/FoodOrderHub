@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { userApi } from '../api/index.js';
 
 const AuthContext = createContext(null);
@@ -9,19 +9,25 @@ export function AuthProvider({ children }) {
     return saved ? JSON.parse(saved) : null;
   });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
-  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Подгружаем актуальный профиль (роль/статус/баланс) при наличии токена
   useEffect(() => {
-    if (token && user) {
-      userApi.balance()
-        .then((data) => setBalance(data.balance))
+    let cancelled = false;
+    if (token) {
+      userApi.profile()
+        .then((profile) => {
+          if (cancelled) return;
+          setUser(profile);
+          localStorage.setItem('user', JSON.stringify(profile));
+        })
         .catch(() => {})
-        .finally(() => setLoading(false));
+        .finally(() => { if (!cancelled) setLoading(false); });
     } else {
       setLoading(false);
     }
-  }, [token, user]);
+    return () => { cancelled = true; };
+  }, [token]);
 
   const login = (data) => {
     localStorage.setItem('token', data.token);
@@ -35,18 +41,29 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
-    setBalance(0);
   };
 
-  const refreshBalance = async () => {
+  const refreshProfile = useCallback(async () => {
     try {
-      const data = await userApi.balance();
-      setBalance(data.balance);
-    } catch (e) { /* ignore */ }
-  };
+      const profile = await userApi.profile();
+      setUser(profile);
+      localStorage.setItem('user', JSON.stringify(profile));
+      return profile;
+    } catch (e) {
+      return null;
+    }
+  }, []);
+
+  const isAuthenticated = !!token;
+  const isPending = user?.status === 'PENDING';
+  const balance = user?.role === 'TEACHER' ? null : (user?.balance ?? null);
 
   return (
-    <AuthContext.Provider value={{ user, token, balance, loading, login, logout, refreshBalance, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{
+      user, token, balance, loading,
+      login, logout, refreshProfile,
+      isAuthenticated, isPending,
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -58,39 +75,14 @@ export function useAuth() {
   return ctx;
 }
 
-// Admin auth context
-const AdminAuthContext = createContext(null);
-
-export function AdminAuthProvider({ children }) {
-  const [admin, setAdmin] = useState(() => {
-    const saved = localStorage.getItem('admin_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [token, setToken] = useState(() => localStorage.getItem('admin_token'));
-
-  const login = (data) => {
-    localStorage.setItem('admin_token', data.token);
-    localStorage.setItem('admin_user', JSON.stringify(data.admin));
-    setToken(data.token);
-    setAdmin(data.admin);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
-    setToken(null);
-    setAdmin(null);
-  };
-
-  return (
-    <AdminAuthContext.Provider value={{ admin, token, login, logout, isAuthenticated: !!token }}>
-      {children}
-    </AdminAuthContext.Provider>
-  );
-}
-
-export function useAdminAuth() {
-  const ctx = useContext(AdminAuthContext);
-  if (!ctx) throw new Error('useAdminAuth must be used within AdminAuthProvider');
-  return ctx;
+// Домашний маршрут по роли
+export function roleHome(user) {
+  if (!user) return '/login';
+  if (user.status === 'PENDING') return '/pending';
+  switch (user.role) {
+    case 'SUPER_ADMIN': return '/admin';
+    case 'CANTEEN_HEAD': return '/canteen';
+    case 'MANAGER': return '/manager';
+    default: return '/';
+  }
 }
