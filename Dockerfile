@@ -31,5 +31,5 @@ ENV PORT=3001
 EXPOSE 3001
 
 # Command to run the application
-# We use a shell to ensure migrations can run before starting (if needed)
-CMD ["sh", "-c", "cd server && npx prisma db push --accept-data-loss && npm start"]
+# db push создаёт схему на чистой базе, seed наполняет тестовыми аккаунтами (идемпотентно)
+CMD ["sh", "-c", "cd server && npx prisma db push && npm run db:seed && npm start"]

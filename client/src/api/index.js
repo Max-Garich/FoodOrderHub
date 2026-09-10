@@ -1,7 +1,7 @@
 import { mockRequest } from './mock.js';
 
 const API_URL = '/api';
-const USE_MOCK = true; // ⚠️ Временный режим без бэкенда. Когда сервер готов — поставь false и удали mock.js
+const USE_MOCK = false; // true = работа без бэкенда на моках (локальная разработка). На сервере — false!
 
 function getHeaders() {
   const token = localStorage.getItem('token');

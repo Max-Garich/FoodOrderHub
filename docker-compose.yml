@@ -5,8 +5,8 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/foodorderhub?schema=public
-      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-foodorderhub}:${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env}@db:5432/${POSTGRES_DB:-foodorderhub}?schema=public
+      - JWT_SECRET=${JWT_SECRET:?Задайте JWT_SECRET в .env}
       - PORT=3001
       - HOST=0.0.0.0
     depends_on:
@@ -15,16 +15,19 @@ services:
 
   db:
     image: postgres:15-alpine
+    restart: always
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=foodorderhub
+      - POSTGRES_USER=${POSTGRES_USER:-foodorderhub}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env}
+      - POSTGRES_DB=${POSTGRES_DB:-foodorderhub}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # БД наружу не публикуем — app ходит через внутреннюю сеть compose.
+    # Для отладки с локальной машины раскомментируй:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d foodorderhub"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-foodorderhub} -d ${POSTGRES_DB:-foodorderhub}"]
       interval: 5s
       timeout: 5s
       retries: 5
