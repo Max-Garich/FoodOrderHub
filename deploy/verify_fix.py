@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Быстрая проверка фикса: null-баланс + заявки с группой."""
+"""Проверка фикса GET /api/admin/users."""
 import json
 import urllib.request
 
 BASE = 'http://80.87.199.182:3001'
-opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # без прокси
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def req(method, path, body=None, token=None):
@@ -15,25 +15,18 @@ def req(method, path, body=None, token=None):
     if token:
         r.add_header('Authorization', f'Bearer {token}')
     with opener.open(r, timeout=15) as resp:
-        return json.loads(resp.read().decode())
+        return resp.status, json.loads(resp.read().decode())
 
 
-health = req('GET', '/api/health')
-print('health:', health)
+print('health:', req('GET', '/api/health')[1])
 
-login = req('POST', '/api/auth/login', {'email': 'superadmin@foodorderhub.ru', 'password': 'super123'})
+_, login = req('POST', '/api/auth/login', {'email': 'superadmin@foodorderhub.ru', 'password': 'super123'})
 token = login['token']
-print('login: ok, role =', login['user']['role'])
 
-requests_ = req('GET', '/api/manager/requests', token=token)
-print('requests count:', len(requests_))
-for r in requests_[:5]:
-    print('  -', r['name'], r['surname'], r['email'], '| group:', (r.get('group') or {}).get('name'), '| role:', r['role'])
+status, users = req('GET', '/api/admin/users', token=token)
+print('GET /api/admin/users ->', status, '| count:', len(users))
+for u in users[:8]:
+    print(f"  - {u['surname']} {u['name']} | {u['role']} | {u['status']} | group={u['groupId']} | balance={u['balance']}")
 
-users = req('GET', '/api/manager/users?groupId=1', token=token)
-print('group 1 members:', len(users))
-for u in users:
-    assert isinstance(u['balance'], (int, float, type(None))), u
-    print('  -', u['name'], u['surname'], '| balance:', u['balance'])
-
-print('OK: no null-balance crash possible, requests contain group field')
+assert status == 200 and len(users) > 0
+print('OK')

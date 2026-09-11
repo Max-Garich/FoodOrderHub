@@ -22,15 +22,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const prisma = new PrismaClient();
 
+// Лимиты с запасом на ~600 пользователей.
+// Внимание: считаются ЗАПРОСЫ С ОДНОГО IP, а не пользователи.
 const generalLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 1000,
+  windowMs: 60 * 1000, // окно 1 минута
+  max: 600, // 600 запросов/мин с одного IP (≈36 000/час)
+  standardHeaders: true,
   message: { error: 'Слишком много запросов, попробуйте позже' },
 });
 
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 100,
+  max: 300, // логины/регистрации: 300/час с одного IP
+  standardHeaders: true,
   message: { error: 'Слишком много попыток входа, попробуйте позже' },
 });
 
@@ -40,6 +44,7 @@ app.locals.prisma = prisma;
 app.use(cors());
 app.use(express.json());
 
+// Единая точка применения общего лимита (не дублируем на роутах — иначе счётчик x2)
 app.use(generalLimiter);
 
 // Request logger for debugging
@@ -57,30 +62,30 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authLimiter, authRoutes);
 
 // User routes
-app.use('/api/user', generalLimiter, userRoutes);
-app.use('/api/menu', generalLimiter, menuRoutes);
-app.use('/api/orders', generalLimiter, orderRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/menu', menuRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Groups (public list + admin CRUD + manager payment)
-app.use('/api', generalLimiter, groupRoutes);
+app.use('/api', groupRoutes);
 
 // Teachers (super admin)
-app.use('/api', generalLimiter, teachersRouter);
+app.use('/api', teachersRouter);
 
 // Manager / admin users, requests, roles
-app.use('/api', generalLimiter, adminUserRoutes);
+app.use('/api', adminUserRoutes);
 
 // Canteen menu (daily + additional + catalog)
-app.use('/api/canteen/menu', generalLimiter, adminMenuRoutes);
+app.use('/api/canteen/menu', adminMenuRoutes);
 
 // Sessions (start/stop/current/list) — путь как в клиенте: /api/canteen/sessions/*
-app.use('/api/canteen/sessions', generalLimiter, adminSessionRoutes);
+app.use('/api/canteen/sessions', adminSessionRoutes);
 
 // Canteen reports
-app.use('/api/canteen/reports', generalLimiter, adminReportRoutes);
+app.use('/api/canteen/reports', adminReportRoutes);
 
 // Manager order editing
-app.use('/api/manager/orders', generalLimiter, adminOrderRoutes);
+app.use('/api/manager/orders', adminOrderRoutes);
  
 // Serve static files from the React app
 const clientDistPath = path.join(__dirname, '../../client/dist');
