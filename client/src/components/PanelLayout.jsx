@@ -10,7 +10,7 @@ const ROLE_TITLES = {
 
 // Общий layout для панелей ролей: topbar (роль + «На сайт» для менеджера + выход)
 // и bottom-nav с вкладками текущей панели (табы — внутреннее состояние панели)
-export default function PanelLayout({ tabs, activeTab, onTabChange, children }) {
+export default function PanelLayout({ tabs, activeTab, onTabChange, topbarExtra, children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -29,6 +29,7 @@ export default function PanelLayout({ tabs, activeTab, onTabChange, children }) 
           <span>{title}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {topbarExtra}
           <ThemeToggle />
           {user?.role === 'MANAGER' && (
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>

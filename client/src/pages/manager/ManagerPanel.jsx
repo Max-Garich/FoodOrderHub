@@ -198,8 +198,8 @@ function BalancesTab({ showToast }) {
                 </div>
                 <div className="text-sm text-muted">{u.email}</div>
                 <div style={{ marginTop: 6 }}>
-                  <span className={`badge ${u.balance > 0 ? 'badge-success' : 'badge-danger'}`}>
-                    ₽{u.balance.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
+                  <span className={`badge ${(u.balance ?? 0) > 0 ? 'badge-success' : 'badge-danger'}`}>
+                    ₽{(u.balance ?? 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
@@ -233,7 +233,7 @@ function BalancesTab({ showToast }) {
             }}>
               <div className="text-sm text-muted">Текущий баланс</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                ₽{topupUser.balance.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
+                ₽{(topupUser.balance ?? 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -286,7 +286,7 @@ function BalancesTab({ showToast }) {
                     Баланс после {topupMode === 'add' ? 'пополнения' : 'списания'}
                   </div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: topupMode === 'add' ? 'var(--success)' : 'var(--danger)' }}>
-                    ₽{(topupUser.balance + (topupMode === 'add' ? 1 : -1) * parseFloat(topupAmount || 0)).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
+                    ₽{((topupUser.balance ?? 0) + (topupMode === 'add' ? 1 : -1) * parseFloat(topupAmount || 0)).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               )}

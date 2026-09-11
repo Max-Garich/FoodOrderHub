@@ -353,7 +353,12 @@ const routes = [
       } else if (query.groupId) {
         pending = pending.filter(x => x.groupId === parseInt(query.groupId));
       }
-      return pending.map(x => ({ id: x.id, name: x.name, surname: x.surname, email: x.email, role: x.role, position: x.position, createdAt: x.createdAt }));
+      return pending.map(x => ({
+        id: x.id, name: x.name, surname: x.surname, email: x.email, role: x.role, position: x.position, createdAt: x.createdAt,
+        group: x.groupId
+          ? { id: x.groupId, name: mockState.groups.find(g => g.id === x.groupId)?.name || null }
+          : null,
+      }));
     },
   },
   {

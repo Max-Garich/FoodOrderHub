@@ -22,22 +22,141 @@ const ROLE_LABELS = Object.fromEntries(ROLES.map(r => [r.value, r.label]));
 export default function SuperAdminPanel() {
   const [tab, setTab] = useState('groups');
   const [toast, setToast] = useState(null);
+  const [showRequests, setShowRequests] = useState(false);
+  const [requestsCount, setRequestsCount] = useState(0);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Счётчик всех заявок для кнопки сверху
+  const refreshRequestsCount = useCallback(async () => {
+    try {
+      setRequestsCount((await managerApi.requests()).length);
+    } catch {
+      /* не критично */
+    }
+  }, []);
+
+  useEffect(() => { refreshRequestsCount(); }, [refreshRequestsCount, tab, showRequests]);
+
   return (
-    <PanelLayout tabs={TABS} activeTab={tab} onTabChange={setTab}>
+    <PanelLayout
+      tabs={TABS}
+      activeTab={tab}
+      onTabChange={setTab}
+      topbarExtra={
+        <button className="btn btn-ghost btn-sm" onClick={() => setShowRequests(true)}>
+          Все заявки
+          {requestsCount > 0 && (
+            <span className="badge badge-warning" style={{ marginLeft: 6 }}>{requestsCount}</span>
+          )}
+        </button>
+      }
+    >
       <div className="page page-admin">
         {toast && <div className={`toast ${toast.type}`}>{toast.message}</div>}
         {tab === 'groups' && <GroupsTab showToast={showToast} />}
         {tab === 'teachers' && <TeachersTab showToast={showToast} />}
         {tab === 'users' && <UsersTab showToast={showToast} />}
         {tab === 'reports' && <ReportsTab showToast={showToast} />}
+        {showRequests && (
+          <AllRequestsModal
+            onClose={() => setShowRequests(false)}
+            onChanged={refreshRequestsCount}
+            showToast={showToast}
+          />
+        )}
       </div>
     </PanelLayout>
+  );
+}
+
+// ===== Все заявки (модалка по кнопке сверху): имя, фамилия, email, группа =====
+function AllRequestsModal({ onClose, onChanged, showToast }) {
+  const [requests, setRequests] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setRequests(await managerApi.requests());
+    } catch (err) {
+      showToast(err.message, 'error');
+      setRequests([]);
+    }
+  }, [showToast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAccept = async (id) => {
+    try {
+      const res = await managerApi.acceptRequest(id);
+      showToast(res.message);
+      await load();
+      onChanged();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleReject = async (id) => {
+    if (!confirm('Отклонить заявку?')) return;
+    try {
+      const res = await managerApi.rejectRequest(id);
+      showToast(res.message);
+      await load();
+      onChanged();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  return (
+    <div className="modal-overlay modal-center" onClick={onClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ margin: 0 }}>Все заявки</h2>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        {requests === null ? (
+          <div className="loader"><div className="spinner"></div></div>
+        ) : requests.length === 0 ? (
+          <div className="empty-state">
+            <p>Новых заявок нет</p>
+          </div>
+        ) : (
+          requests.map((r) => (
+            <div className="card" key={r.id} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>
+                    {r.name} {r.surname}
+                    {r.role === 'TEACHER' && <span className="badge badge-primary" style={{ marginLeft: 8 }}>Преподаватель</span>}
+                  </div>
+                  <div className="text-sm text-muted">{r.email}</div>
+                  <div className="text-xs text-muted">
+                    {r.role === 'TEACHER'
+                      ? (r.position || 'Без должности')
+                      : `Группа: ${r.group?.name || '—'}`}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => handleAccept(r.id)}>Принять</button>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    onClick={() => handleReject(r.id)}
+                  >
+                    Отклонить
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -376,8 +495,8 @@ function GroupMembers({ groupId, showToast }) {
                 </div>
                 <div className="text-sm text-muted">{u.email}</div>
                 <div style={{ marginTop: 6 }}>
-                  <span className={`badge ${u.balance > 0 ? 'badge-success' : 'badge-danger'}`}>
-                    ₽{u.balance.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
+                  <span className={`badge ${(u.balance ?? 0) > 0 ? 'badge-success' : 'badge-danger'}`}>
+                    ₽{(u.balance ?? 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
@@ -411,7 +530,7 @@ function GroupMembers({ groupId, showToast }) {
             <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 16, textAlign: 'center' }}>
               <div className="text-sm text-muted">Текущий баланс</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                ₽{topupUser.balance.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
+                ₽{(topupUser.balance ?? 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -457,7 +576,7 @@ function GroupMembers({ groupId, showToast }) {
                     Баланс после {topupMode === 'add' ? 'пополнения' : 'списания'}
                   </div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: topupMode === 'add' ? 'var(--success)' : 'var(--danger)' }}>
-                    ₽{(topupUser.balance + (topupMode === 'add' ? 1 : -1) * parseFloat(topupAmount || 0)).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
+                    ₽{((topupUser.balance ?? 0) + (topupMode === 'add' ? 1 : -1) * parseFloat(topupAmount || 0)).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               )}
