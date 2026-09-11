@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: app
     restart: always
     ports:
       - "3001:3001"
@@ -12,6 +14,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # Админ-панель — отдельный контейнер (nginx) на порту 3002.
+  # API-запросы проксируются на app, БД напрямую не трогается.
+  admin:
+    build:
+      context: .
+      target: admin
+    restart: always
+    ports:
+      - "3002:80"
+    depends_on:
+      - app
 
   db:
     image: postgres:15-alpine

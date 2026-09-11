@@ -1,13 +1,13 @@
-# Stage 1: Build the frontend
-FROM node:20-alpine as client-build
+# Stage 1: Build the frontends (user app + admin app)
+FROM node:20-alpine AS client-build
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm install
 COPY client/ ./
-RUN npm run build
+RUN npm run build && npm run build:admin
 
-# Stage 2: Build the backend
-FROM node:20-alpine
+# Stage 2 (target "app"): backend + пользовательский фронтенд на :3001
+FROM node:20-alpine AS app
 WORKDIR /app
 
 # Install dependencies for the server
@@ -17,7 +17,7 @@ RUN cd server && npm install
 # Copy server source and prisma schema
 COPY server/ ./server/
 
-# Copy built frontend from Stage 1
+# Copy built user frontend from Stage 1
 COPY --from=client-build /app/client/dist ./client/dist
 
 # Generate Prisma client for PostgreSQL
@@ -33,3 +33,10 @@ EXPOSE 3001
 # Command to run the application
 # db push создаёт схему на чистой базе, seed наполняет тестовыми аккаунтами (идемпотентно)
 CMD ["sh", "-c", "cd server && npx prisma db push && npm run db:seed && npm start"]
+
+# Stage 3 (target "admin"): админ-панель — лёгкий nginx со статикой + прокси /api на app
+# Наружу публикуется на порту 3002 (см. docker-compose.yml)
+FROM nginx:alpine AS admin
+COPY client/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=client-build /app/client/dist-admin /usr/share/nginx/html
+EXPOSE 80

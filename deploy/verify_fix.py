@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Проверка фикса GET /api/admin/users."""
+"""Проверка: GET /api/admin/users работает + rate limit поднят."""
 import json
 import urllib.request
 
@@ -24,9 +24,16 @@ _, login = req('POST', '/api/auth/login', {'email': 'superadmin@foodorderhub.ru'
 token = login['token']
 
 status, users = req('GET', '/api/admin/users', token=token)
-print('GET /api/admin/users ->', status, '| count:', len(users))
-for u in users[:8]:
-    print(f"  - {u['surname']} {u['name']} | {u['role']} | {u['status']} | group={u['groupId']} | balance={u['balance']}")
+print('GET /api/admin/users:', status, '| всего пользователей:', len(users))
+for u in users[:6]:
+    print('  -', u['name'], u['surname'], '|', u['role'], '|', u['status'], '| balance:', u['balance'])
 
-assert status == 200 and len(users) > 0
-print('OK')
+# Раньше лимит был 1000/час с двойным подсчётом (=500 фактически).
+# 80 запросов подряд не должны дать 429.
+codes = {}
+for i in range(80):
+    s, _ = req('GET', '/api/admin/users', token=token)
+    codes[s] = codes.get(s, 0) + 1
+print('80 последовательных запросов -> коды:', codes)
+assert codes.get(200) == 80, 'RATE LIMIT СРАБОТАЛ ПРЕЖДЕВРЕМЕННО!'
+print('OK: /api/admin/users отвечает, rate limit не срабатывает')

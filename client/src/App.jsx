@@ -9,10 +9,7 @@ import MenuPage from './pages/user/MenuPage.jsx';
 import HistoryPage from './pages/user/HistoryPage.jsx';
 import ProfilePage from './pages/user/ProfilePage.jsx';
 import UserLayout from './components/UserLayout.jsx';
-
-import ManagerPanel from './pages/manager/ManagerPanel.jsx';
-import CanteenPanel from './pages/canteen/CanteenPanel.jsx';
-import SuperAdminPanel from './pages/admin/SuperAdminPanel.jsx';
+import AdminRedirectPage from './pages/user/AdminRedirectPage.jsx';
 
 import './index.css';
 
@@ -30,11 +27,14 @@ function RequireRole({ roles, children }) {
     return <Navigate to="/pending" replace />;
   }
   if (roles && !roles.includes(user?.role)) {
+    // SUPER_ADMIN / CANTEEN_HEAD перенаправляются на /admin-redirect (админка — отдельное приложение)
     return <Navigate to={roleHome(user)} replace />;
   }
   return children;
 }
 
+// Пользовательское приложение (собирается в dist, served app-контейнером на :3001).
+// Админ-панели (менеджер/столовая/супер-админ) — отдельное приложение на порту 3002.
 export default function App() {
   return (
     <BrowserRouter>
@@ -59,26 +59,12 @@ export default function App() {
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
 
-            {/* Панель менеджера группы */}
-            <Route path="/manager" element={
-              <RequireRole roles={['MANAGER', 'SUPER_ADMIN']}>
-                <ManagerPanel />
-              </RequireRole>
-            } />
+            {/* Менеджер на основном сайте заказывает обед как обычный участник группы */}
+            <Route path="/manager" element={<Navigate to="/" replace />} />
 
-            {/* Панель главы столовой */}
-            <Route path="/canteen" element={
-              <RequireRole roles={['CANTEEN_HEAD', 'SUPER_ADMIN']}>
-                <CanteenPanel />
-              </RequireRole>
-            } />
-
-            {/* Панель супер-админа */}
-            <Route path="/admin" element={
-              <RequireRole roles={['SUPER_ADMIN']}>
-                <SuperAdminPanel />
-              </RequireRole>
-            } />
+            {/* Админ-роуты → ссылка на отдельную админ-панель (:3002) */}
+            <Route path="/admin" element={<AdminRedirectPage />} />
+            <Route path="/canteen" element={<AdminRedirectPage />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
