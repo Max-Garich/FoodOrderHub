@@ -15,10 +15,10 @@ export default function CanteenPanel() {
   const [tab, setTab] = useState('menu');
   const [toast, setToast] = useState(null);
 
-  const showToast = (message, type = 'success') => {
+  const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
 
   return (
     <PanelLayout tabs={TABS} activeTab={tab} onTabChange={setTab}>

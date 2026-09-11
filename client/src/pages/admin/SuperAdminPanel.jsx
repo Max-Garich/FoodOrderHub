@@ -25,10 +25,11 @@ export default function SuperAdminPanel() {
   const [showRequests, setShowRequests] = useState(false);
   const [requestsCount, setRequestsCount] = useState(0);
 
-  const showToast = (message, type = 'success') => {
+  // useCallback — стабильная ссылка, иначе дочерние useEffect([showToast]) ушли бы в бесконечный цикл
+  const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
 
   // Счётчик всех заявок для кнопки сверху
   const refreshRequestsCount = useCallback(async () => {

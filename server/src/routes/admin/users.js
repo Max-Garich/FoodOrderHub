@@ -319,6 +319,35 @@ router.post('/manager/requests/:userId/reject', requireAuth, requireRole('MANAGE
 // Только SUPER_ADMIN
 // ═══════════════════════════════════════════════
 
+// GET /api/admin/users — все пользователи (для вкладки «Пользователи»)
+router.get('/admin/users', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const prisma = req.app.locals.prisma;
+
+    const users = await prisma.user.findMany({
+      where: { isDeleted: false },
+      select: {
+        id: true,
+        name: true,
+        surname: true,
+        email: true,
+        role: true,
+        status: true,
+        groupId: true,
+        position: true,
+        balance: { select: { amount: true } },
+        createdAt: true,
+      },
+      orderBy: [{ surname: 'asc' }, { name: 'asc' }],
+    });
+
+    res.json(users.map((u) => ({ ...u, balance: u.balance ? u.balance.amount : null })));
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // PUT /api/admin/users/:id/role — назначение роли
 router.put('/admin/users/:id/role', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
