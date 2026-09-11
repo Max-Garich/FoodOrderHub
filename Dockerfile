@@ -41,4 +41,6 @@ FROM nginx:alpine AS admin
 RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html
 COPY client/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=client-build /app/client/dist-admin /usr/share/nginx/html
+# Сборка админки отдаёт admin.html — переименовываем в index.html для nginx
+RUN mv /usr/share/nginx/html/admin.html /usr/share/nginx/html/index.html
 EXPOSE 80
