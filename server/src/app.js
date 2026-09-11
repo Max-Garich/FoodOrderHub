@@ -73,8 +73,8 @@ app.use('/api', generalLimiter, adminUserRoutes);
 // Canteen menu (daily + additional + catalog)
 app.use('/api/canteen/menu', generalLimiter, adminMenuRoutes);
 
-// Sessions (start/stop/current/list)
-app.use('/api/admin/sessions', generalLimiter, adminSessionRoutes);
+// Sessions (start/stop/current/list) — путь как в клиенте: /api/canteen/sessions/*
+app.use('/api/canteen/sessions', generalLimiter, adminSessionRoutes);
 
 // Canteen reports
 app.use('/api/canteen/reports', generalLimiter, adminReportRoutes);
