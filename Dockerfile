@@ -1,13 +1,14 @@
-# Stage 1: Build the frontends (user app + admin app)
-FROM node:20-alpine AS client-build
+# Stage 1: Build the frontends (user site + admin panel)
+FROM node:20-alpine as client-build
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm install
 COPY client/ ./
+# Пользовательский сайт → dist, админ-панель → dist-admin
 RUN npm run build && npm run build:admin
 
-# Stage 2 (target "app"): backend + пользовательский фронтенд на :3001
-FROM node:20-alpine AS app
+# Stage 2: Backend + user site (Node/Express, порт 3001)
+FROM node:20-alpine as app
 WORKDIR /app
 
 # Install dependencies for the server
@@ -34,13 +35,12 @@ EXPOSE 3001
 # db push создаёт схему на чистой базе, seed наполняет тестовыми аккаунтами (идемпотентно)
 CMD ["sh", "-c", "cd server && npx prisma db push && npm run db:seed && npm start"]
 
-# Stage 3 (target "admin"): админ-панель — лёгкий nginx со статикой + прокси /api на app
-# Наружу публикуется на порту 3002 (см. docker-compose.yml)
-FROM nginx:alpine AS admin
-# Убираем дефолтную страницу nginx, иначе она перекрывает нашу статику
+# Stage 3: Admin panel (nginx, порт 80 → наружу 3002)
+FROM nginx:alpine as admin
+# Убираем дефолтную страницу nginx — иначе она перекрывает нашу статику
 RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html
 COPY client/nginx.conf /etc/nginx/conf.d/default.conf
+# Vite с input admin.html отдаёт файл admin.html, а nginx ищет index.html
 COPY --from=client-build /app/client/dist-admin /usr/share/nginx/html
-# Сборка админки отдаёт admin.html — переименовываем в index.html для nginx
 RUN mv /usr/share/nginx/html/admin.html /usr/share/nginx/html/index.html
 EXPOSE 80

@@ -7,27 +7,45 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware: любой валидный JWT.
 // Кладёт req.user = { id, role, status, groupId }
-export function requireAuth(req, res, next) {
+// ВАЖНО: роль/статус/groupId берём из БД, а не из токена — иначе после
+// подтверждения заявки (или смены роли) юзер со старым токеном видит
+// устаревший статус («Приём заказов закрыт») до перелогина.
+export async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Требуется авторизация' });
   }
 
   const token = authHeader.split(' ')[1];
+  let payload;
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    if (!payload.id || !payload.role) {
+    payload = jwt.verify(token, JWT_SECRET);
+    if (!payload.id) {
       return res.status(401).json({ error: 'Недействительный токен' });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'Недействительный токен' });
+  }
+
+  try {
+    const prisma = req.app.locals.prisma;
+    const dbUser = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { role: true, status: true, groupId: true, isDeleted: true },
+    });
+    if (!dbUser || dbUser.isDeleted) {
+      return res.status(401).json({ error: 'Пользователь не найден' });
     }
     req.user = {
       id: payload.id,
-      role: payload.role,
-      status: payload.status,
-      groupId: payload.groupId ?? null,
+      role: dbUser.role,
+      status: dbUser.status,
+      groupId: dbUser.groupId ?? null,
     };
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Недействительный токен' });
+    console.error('requireAuth DB error:', err);
+    return res.status(500).json({ error: 'Ошибка сервера' });
   }
 }
 

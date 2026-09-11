@@ -8,8 +8,8 @@ import PendingPage from './pages/user/PendingPage.jsx';
 import MenuPage from './pages/user/MenuPage.jsx';
 import HistoryPage from './pages/user/HistoryPage.jsx';
 import ProfilePage from './pages/user/ProfilePage.jsx';
-import UserLayout from './components/UserLayout.jsx';
 import AdminRedirectPage from './pages/user/AdminRedirectPage.jsx';
+import UserLayout from './components/UserLayout.jsx';
 
 import './index.css';
 
@@ -27,14 +27,14 @@ function RequireRole({ roles, children }) {
     return <Navigate to="/pending" replace />;
   }
   if (roles && !roles.includes(user?.role)) {
-    // SUPER_ADMIN / CANTEEN_HEAD перенаправляются на /admin-redirect (админка — отдельное приложение)
     return <Navigate to={roleHome(user)} replace />;
   }
   return children;
 }
 
-// Пользовательское приложение (собирается в dist, served app-контейнером на :3001).
-// Админ-панели (менеджер/столовая/супер-админ) — отдельное приложение на порту 3002.
+// Пользовательский сайт FoodOrderHub.
+// Админ-панели (супер-админ, глава столовой, менеджер) вынесены
+// в отдельное приложение на порту 3002 (см. AppAdmin.jsx).
 export default function App() {
   return (
     <BrowserRouter>
@@ -59,10 +59,9 @@ export default function App() {
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
 
-            {/* Менеджер на основном сайте заказывает обед как обычный участник группы */}
+            {/* Панели управления — в отдельной админ-панели (:3002).
+                Менеджер на основном сайте = обычный участник своей группы. */}
             <Route path="/manager" element={<Navigate to="/" replace />} />
-
-            {/* Админ-роуты → ссылка на отдельную админ-панель (:3002) */}
             <Route path="/admin" element={<AdminRedirectPage />} />
             <Route path="/canteen" element={<AdminRedirectPage />} />
 

@@ -2,45 +2,55 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth, roleHome } from './context/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 
-import LoginPage from './pages/user/LoginPage.jsx';
+import AdminLoginPage from './pages/admin/AdminLoginPage.jsx';
 import ManagerPanel from './pages/manager/ManagerPanel.jsx';
 import CanteenPanel from './pages/canteen/CanteenPanel.jsx';
 import SuperAdminPanel from './pages/admin/SuperAdminPanel.jsx';
 
 import './index.css';
 
-// Адрес основного (пользовательского) сайта — для ссылки «На сайт»
-export const APP_URL =
-  import.meta.env.VITE_APP_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
+// URL основного (пользовательского) сайта — тот же хост, порт 3001
+export function mainSiteUrl(path = '') {
+  return `${window.location.protocol}//${window.location.hostname}:3001${path}`;
+}
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'CANTEEN_HEAD', 'MANAGER'];
-
-// Экран для тех, кто зашёл в админ-панель без административной роли
-function NoAccess() {
-  const { logout, user } = useAuth();
+// Экран «нет доступа» для не-админов, заглянувших в админ-панель
+function NoAccess({ title = 'Нет доступа', message }) {
   return (
     <div className="login-page">
-      <div className="login-card">
+      <div className="login-card" style={{ textAlign: 'center' }}>
         <div className="login-logo">
           <div className="logo-icon">🔒</div>
-          <h1>Нет доступа</h1>
-          <p>Админ-панель доступна только администрации</p>
+          <h1>{title}</h1>
         </div>
-        <p className="text-muted" style={{ marginBottom: 16 }}>
-          Вы вошли как {user?.name} {user?.surname} ({user?.role}).
-          <br />Заказ обеда — на основном сайте.
+        <p className="text-muted" style={{ marginBottom: 20 }}>
+          {message || 'Эта панель доступна только администраторам, главе столовой и менеджерам групп.'}
         </p>
-        <a className="btn btn-primary btn-block btn-lg" href={APP_URL}>Перейти на основной сайт</a>
-        <button
-          className="btn btn-ghost btn-block"
-          style={{ marginTop: 8 }}
-          onClick={() => { logout(); window.location.href = '/login'; }}
-        >
-          Выйти из аккаунта
-        </button>
+        <a className="btn btn-primary btn-block" href={mainSiteUrl('/')}>
+          Перейти на основной сайт
+        </a>
       </div>
     </div>
   );
+}
+
+// Корень админ-панели: админа отправляем на его панель, остальных — на NoAccess
+function RootRedirect() {
+  const { user, loading, isAuthenticated } = useAuth();
+
+  if (loading) {
+    return <div className="loader"><div className="spinner"></div></div>;
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user?.status === 'PENDING') {
+    return <NoAccess title="Заявка на рассмотрении" message="Ваш аккаунт ещё не подтверждён. Ожидайте, пока администратор примет заявку." />;
+  }
+  if (user && ['SUPER_ADMIN', 'CANTEEN_HEAD', 'MANAGER'].includes(user.role)) {
+    return <Navigate to={roleHome(user)} replace />;
+  }
+  return <NoAccess />;
 }
 
 // Wrapper: требует авторизацию, ACTIVE-статус и одну из ролей
@@ -54,7 +64,7 @@ function RequireRole({ roles, children }) {
     return <Navigate to="/login" replace />;
   }
   if (isPending) {
-    return <NoAccess />;
+    return <NoAccess title="Заявка на рассмотрении" message="Ваш аккаунт ещё не подтверждён. Ожидайте, пока администратор примет заявку." />;
   }
   if (roles && !roles.includes(user?.role)) {
     return <NoAccess />;
@@ -62,36 +72,19 @@ function RequireRole({ roles, children }) {
   return children;
 }
 
-// Корневой редирект: админ — в свою панель, остальные — на логин/NoAccess
-function RootRedirect() {
-  const { user, loading, isAuthenticated, isPending } = useAuth();
-
-  if (loading) {
-    return <div className="loader"><div className="spinner"></div></div>;
-  }
-  if (isAuthenticated && !isPending && ADMIN_ROLES.includes(user?.role)) {
-    return <Navigate to={roleHome(user)} replace />;
-  }
-  if (isAuthenticated) {
-    return <NoAccess />;
-  }
-  return <Navigate to="/login" replace />;
-}
-
-// Отдельное приложение админ-панели (собирается в dist-admin, served nginx-контейнером на :3002)
 export default function AppAdmin() {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <Routes>
-            {/* Вход */}
-            <Route path="/login" element={<LoginPage />} />
+            {/* Вход в админ-панель */}
+            <Route path="/login" element={<AdminLoginPage />} />
 
-            {/* Панель менеджера группы */}
-            <Route path="/manager" element={
-              <RequireRole roles={['MANAGER', 'SUPER_ADMIN']}>
-                <ManagerPanel />
+            {/* Панель супер-админа */}
+            <Route path="/admin" element={
+              <RequireRole roles={['SUPER_ADMIN']}>
+                <SuperAdminPanel />
               </RequireRole>
             } />
 
@@ -102,13 +95,14 @@ export default function AppAdmin() {
               </RequireRole>
             } />
 
-            {/* Панель супер-админа */}
-            <Route path="/admin" element={
-              <RequireRole roles={['SUPER_ADMIN']}>
-                <SuperAdminPanel />
+            {/* Панель менеджера группы */}
+            <Route path="/manager" element={
+              <RequireRole roles={['MANAGER', 'SUPER_ADMIN']}>
+                <ManagerPanel />
               </RequireRole>
             } />
 
+            <Route path="/" element={<RootRedirect />} />
             <Route path="*" element={<RootRedirect />} />
           </Routes>
         </AuthProvider>
