@@ -1,39 +1,62 @@
 #!/usr/bin/env python3
-"""Проверка: GET /api/admin/users работает + rate limit поднят."""
+"""Проверка разделения: юзер-сайт :3001, админка :3002 (nginx + proxy /api)."""
 import json
 import urllib.request
 
-BASE = 'http://80.87.199.182:3001'
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+USER = 'http://80.87.199.182:3001'
+ADMIN = 'http://80.87.199.182:3002'
 
 
-def req(method, path, body=None, token=None):
-    data = json.dumps(body).encode() if body is not None else None
-    r = urllib.request.Request(BASE + path, data=data, method=method)
-    if body is not None:
-        r.add_header('Content-Type', 'application/json')
+def get(base, path, token=None):
+    r = urllib.request.Request(base + path)
     if token:
         r.add_header('Authorization', f'Bearer {token}')
     with opener.open(r, timeout=15) as resp:
-        return resp.status, json.loads(resp.read().decode())
+        return resp.status, resp.read().decode()
 
 
-print('health:', req('GET', '/api/health')[1])
+# 1. Юзер-сайт жив, отдаёт пользовательское приложение
+s, html = get(USER, '/')
+assert s == 200 and 'root' in html
+print('3001 / ->', s, '| title:', html.split('<title>')[1].split('</title>')[0])
 
-_, login = req('POST', '/api/auth/login', {'email': 'superadmin@foodorderhub.ru', 'password': 'super123'})
+# 2. Админка отдаёт отдельное приложение
+s, html = get(ADMIN, '/')
+assert s == 200
+title = html.split('<title>')[1].split('</title>')[0]
+print('3002 / ->', s, '| title:', title)
+assert 'Админ-панель' in title, 'админка отдаёт не тот бандл!'
+
+# 3. SPA fallback на 3002 (любой путь -> index.html)
+s, html = get(ADMIN, '/admin')
+assert s == 200 and 'root' in html
+print('3002 /admin (SPA fallback) ->', s)
+
+# 4. API через nginx-прокси
+s, body = get(ADMIN, '/api/health')
+assert s == 200 and json.loads(body)['status'] == 'ok'
+print('3002 /api/health (proxy) ->', s, body)
+
+# 5. Логин супер-админа через прокси + защищённый эндпоинт через прокси
+data = json.dumps({'email': 'superadmin@foodorderhub.ru', 'password': 'super123'}).encode()
+r = urllib.request.Request(ADMIN + '/api/auth/login', data=data, method='POST')
+r.add_header('Content-Type', 'application/json')
+with opener.open(r, timeout=15) as resp:
+    login = json.loads(resp.read().decode())
 token = login['token']
+print('3002 login ->', login['user']['role'])
 
-status, users = req('GET', '/api/admin/users', token=token)
-print('GET /api/admin/users:', status, '| всего пользователей:', len(users))
-for u in users[:6]:
-    print('  -', u['name'], u['surname'], '|', u['role'], '|', u['status'], '| balance:', u['balance'])
+s, body = get(ADMIN, '/api/admin/users', token=token)
+users = json.loads(body)
+print('3002 /api/admin/users (proxy) ->', s, '| пользователей:', len(users))
 
-# Раньше лимит был 1000/час с двойным подсчётом (=500 фактически).
-# 80 запросов подряд не должны дать 429.
-codes = {}
-for i in range(80):
-    s, _ = req('GET', '/api/admin/users', token=token)
-    codes[s] = codes.get(s, 0) + 1
-print('80 последовательных запросов -> коды:', codes)
-assert codes.get(200) == 80, 'RATE LIMIT СРАБОТАЛ ПРЕЖДЕВРЕМЕННО!'
-print('OK: /api/admin/users отвечает, rate limit не срабатывает')
+# 6. На юзер-сайте админ-панели больше нет в бандле
+s, html = get(USER, '/')
+import re
+m = re.search(r'assets/index-[\w-]+\.js', html)
+s2, js = get(USER, '/' + m.group(0))
+assert 'SuperAdminPanel' not in js and 'ManagerPanel' not in js
+print('3001 юзер-бандл НЕ содержит админ-панелей:', m.group(0))
+
+print('\nOK: разделение работает')

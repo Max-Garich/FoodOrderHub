@@ -37,6 +37,8 @@ CMD ["sh", "-c", "cd server && npx prisma db push && npm run db:seed && npm star
 # Stage 3 (target "admin"): админ-панель — лёгкий nginx со статикой + прокси /api на app
 # Наружу публикуется на порту 3002 (см. docker-compose.yml)
 FROM nginx:alpine AS admin
+# Убираем дефолтную страницу nginx, иначе она перекрывает нашу статику
+RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html
 COPY client/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=client-build /app/client/dist-admin /usr/share/nginx/html
 EXPOSE 80
