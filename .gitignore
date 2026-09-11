@@ -20,3 +20,5 @@ server/dist/
 # Databases (Docker handles this, but local files can exist)
 server/prisma/*.db
 server/prisma/*.sqlite-journal
+
+deploy/creds.json
