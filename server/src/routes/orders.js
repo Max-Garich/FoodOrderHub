@@ -104,8 +104,8 @@ router.post('/', requireAuth, requireActive, async (req, res) => {
         const balance = await tx.balance.findUnique({
           where: { userId: req.user.id },
         });
-        // Овердрафт +100₽
-        if (!balance || balance.amount + 100 < totalAmount) {
+        // Заказ возможен только в пределах баланса (без ухода в минус)
+        if (!balance || balance.amount < totalAmount) {
           throw new Error('INSUFFICIENT_FUNDS');
         }
 

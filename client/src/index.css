@@ -396,11 +396,12 @@ select.input {
   background: var(--bg-input);
   border-radius: var(--radius-full);
   padding: 4px;
+  flex-shrink: 0;
 }
 
 .counter-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: none;
   background: var(--bg-card);
@@ -440,6 +441,38 @@ select.input {
   font-weight: 700;
   font-size: 1.1rem;
   color: var(--text);
+}
+
+/* Счётчик как редактируемое поле ввода */
+input.counter-value {
+  width: 44px;
+  min-width: 44px;
+  padding: 6px 2px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input.counter-value:focus {
+  background: var(--bg-card);
+  box-shadow: 0 0 0 2px var(--primary-bg);
+}
+
+input.counter-value:disabled {
+  opacity: 0.35;
+}
+
+input.counter-value::-webkit-outer-spin-button,
+input.counter-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* ===== Badge ===== */
@@ -843,6 +876,8 @@ select.input {
   font-size: 1rem;
   margin-bottom: 2px;
   color: var(--text);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .menu-card-price {
@@ -1930,6 +1965,31 @@ select.input {
   .calendar-day {
     min-height: 36px;
     font-size: 0.8125rem;
+  }
+}
+
+/* ===== Responsive: компактность на узких телефонах ===== */
+@media (max-width: 400px) {
+  .topbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+  .topbar-logo {
+    font-size: 1.05rem;
+    min-width: 0;
+  }
+  .page {
+    padding: 12px 10px calc(var(--bottom-nav-height) + 20px);
+  }
+  .card {
+    padding: 14px;
+  }
+  .menu-card {
+    gap: 8px;
+  }
+  .floating-cart {
+    left: 10px;
+    right: 10px;
   }
 }
 

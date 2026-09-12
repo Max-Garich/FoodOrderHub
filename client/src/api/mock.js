@@ -276,8 +276,8 @@ const routes = [
         return sum + (dish ? dish.price * item.quantity : 0);
       }, 0);
 
-      if (!isTeacher && total > u.balance + 100) {
-        throw { status: 400, error: 'Недостаточно средств (лимит долга ₽100)' };
+      if (!isTeacher && total > u.balance) {
+        throw { status: 400, error: 'Недостаточно средств' };
       }
 
       const orderId = nextId(mockState.orders);

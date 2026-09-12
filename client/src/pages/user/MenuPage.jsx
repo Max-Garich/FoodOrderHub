@@ -47,6 +47,14 @@ export default function MenuPage() {
     setQuantities((prev) => ({ ...prev, [item.id]: next }));
   };
 
+  // Прямой ввод количества (только цифры, клампим в 0..остаток)
+  const setQuantityDirect = (item, raw) => {
+    const max = item.remaining ?? Infinity;
+    const digits = String(raw).replace(/[^\d]/g, '');
+    const next = Math.min(max, parseInt(digits || '0', 10));
+    setQuantities((prev) => ({ ...prev, [item.id]: next }));
+  };
+
   const toggleFav = async (e, menuItemId) => {
     e.stopPropagation();
     if (!menuItemId) return;
@@ -73,7 +81,7 @@ export default function MenuPage() {
     0
   );
   const hasItems = cartItems.length > 0;
-  const canAfford = isTeacher || totalAmount <= (balance ?? 0) + 100;
+  const canAfford = isTeacher || totalAmount <= (balance ?? 0);
   const isOrdering = menuData?.isOrderingActive;
 
   const handleOrder = async () => {
@@ -178,7 +186,16 @@ export default function MenuPage() {
             >
               −
             </button>
-            <span className="counter-value">{quantities[item.id] || 0}</span>
+            <input
+              className="counter-value"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              aria-label="Количество порций"
+              value={quantities[item.id] || 0}
+              disabled={soldOut}
+              onChange={(e) => setQuantityDirect(item, e.target.value)}
+            />
             <button
               className="counter-btn"
               onClick={() => updateQuantity(item, 1)}
@@ -269,7 +286,7 @@ export default function MenuPage() {
               </div>
               {!canAfford && (
                 <div className="cart-warning">
-                  Превышен лимит долга (нужно ещё ₽{(totalAmount - ((balance ?? 0) + 100)).toLocaleString('ru-RU', {minimumFractionDigits: 2})})
+                  Недостаточно средств (нужно ещё ₽{(totalAmount - (balance ?? 0)).toLocaleString('ru-RU', {minimumFractionDigits: 2})})
                 </div>
               )}
               <button
