@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PanelLayout from '../../components/PanelLayout.jsx';
 import { canteenApi } from '../../api/index.js';
+import { fileToPhotoDataUrl } from '../../utils/photo.js';
 
 const TABS = [
   { id: 'menu', label: 'Меню' },
@@ -41,11 +42,13 @@ function MenuTab({ showToast }) {
   const [newPrice, setNewPrice] = useState('');
   const [newCategory, setNewCategory] = useState('Прочее');
   const [newMax, setNewMax] = useState('');
+  const [newPhoto, setNewPhoto] = useState(null);
   const [editId, setEditId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editCategory, setEditCategory] = useState('Прочее');
   const [editMax, setEditMax] = useState('');
+  const [editPhoto, setEditPhoto] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -61,6 +64,15 @@ function MenuTab({ showToast }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const pickPhoto = async (file, setPhoto) => {
+    if (!file) return;
+    try {
+      setPhoto(await fileToPhotoDataUrl(file));
+    } catch {
+      showToast('Не удалось загрузить фото', 'error');
+    }
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!newName || !newPrice || newMax === '') return;
@@ -71,8 +83,9 @@ function MenuTab({ showToast }) {
         price: parseFloat(newPrice),
         category: newCategory,
         maxQuantity: parseInt(newMax),
+        photoUrl: newPhoto,
       });
-      setNewName(''); setNewPrice(''); setNewMax('');
+      setNewName(''); setNewPrice(''); setNewMax(''); setNewPhoto(null);
       showToast('Позиция добавлена');
       load();
     } catch (err) {
@@ -91,6 +104,7 @@ function MenuTab({ showToast }) {
         price: parseFloat(editPrice),
         category: editCategory,
         maxQuantity: parseInt(editMax),
+        photoUrl: editPhoto,
       });
       setEditId(null);
       showToast('Позиция обновлена');
@@ -119,6 +133,7 @@ function MenuTab({ showToast }) {
     setEditPrice(item.price.toString());
     setEditCategory(item.category || 'Прочее');
     setEditMax((item.maxQuantity ?? 0).toString());
+    setEditPhoto(item.photoUrl || null);
   };
 
   if (loading) return <div className="loader"><div className="spinner"></div></div>;
@@ -149,6 +164,21 @@ function MenuTab({ showToast }) {
                     </select>
                     <input className="input" type="number" min="0" value={editMax}
                       onChange={(e) => setEditMax(e.target.value)} style={{ flex: 1 }} required placeholder="Лимит" />
+                  </div>
+                  <div className="input-group" style={{ marginTop: 8 }}>
+                    <label>Фото</label>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {editPhoto ? (
+                        <img className="dish-photo" src={editPhoto} alt="превью" style={{ width: 56, height: 56 }} />
+                      ) : (
+                        <div className="dish-photo dish-photo-placeholder" style={{ width: 56, height: 56 }}>🍽️</div>
+                      )}
+                      <input className="input" type="file" accept="image/*"
+                        onChange={(e) => pickPhoto(e.target.files?.[0], setEditPhoto)} />
+                      {editPhoto && (
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditPhoto(null)}>Убрать</button>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <button className="btn btn-primary btn-sm" type="submit" disabled={saving}>Сохранить</button>
@@ -211,6 +241,21 @@ function MenuTab({ showToast }) {
             <input className="input" type="number" min="0" value={newMax}
               onChange={(e) => setNewMax(e.target.value)} placeholder="50" required />
           </div>
+          <div className="input-group">
+            <label>Фото (необязательно)</label>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              {newPhoto ? (
+                <img className="dish-photo" src={newPhoto} alt="превью" style={{ width: 56, height: 56 }} />
+              ) : (
+                <div className="dish-photo dish-photo-placeholder" style={{ width: 56, height: 56 }}>🍽️</div>
+              )}
+              <input className="input" type="file" accept="image/*"
+                onChange={(e) => pickPhoto(e.target.files?.[0], setNewPhoto)} />
+              {newPhoto && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNewPhoto(null)}>Убрать</button>
+              )}
+            </div>
+          </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={saving}>
             {saving ? 'Добавление...' : 'Добавить в меню'}
           </button>
@@ -229,6 +274,7 @@ function AdditionalTab({ showToast }) {
   const [newPrice, setNewPrice] = useState('');
   const [newCategory, setNewCategory] = useState('Прочее');
   const [newMax, setNewMax] = useState('');
+  const [newPhoto, setNewPhoto] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -258,8 +304,9 @@ function AdditionalTab({ showToast }) {
         price: parseFloat(newPrice),
         category: newCategory,
         maxQuantity: parseInt(newMax),
+        photoUrl: newPhoto,
       });
-      setNewName(''); setNewPrice(''); setNewMax('');
+      setNewName(''); setNewPrice(''); setNewMax(''); setNewPhoto(null);
       showToast('Позиция добавлена в доп-меню');
       load();
     } catch (err) {
@@ -304,6 +351,9 @@ function AdditionalTab({ showToast }) {
               <div className="menu-item-admin">
                 <div className="text-xs text-muted">{item.category || 'Прочее'}</div>
                 <div className="menu-item-admin-main">
+                  {item.photoUrl && (
+                    <img className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
+                  )}
                   <div className="menu-card-name">{item.itemName}</div>
                   <div className="menu-card-price">
                     ₽{item.price.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
@@ -351,6 +401,33 @@ function AdditionalTab({ showToast }) {
             <label>Лимит порций</label>
             <input className="input" type="number" min="0" value={newMax}
               onChange={(e) => setNewMax(e.target.value)} placeholder="30" required />
+          </div>
+          <div className="input-group">
+            <label>Фото (необязательно)</label>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              {newPhoto ? (
+                <img className="dish-photo" src={newPhoto} alt="превью" style={{ width: 56, height: 56 }} />
+              ) : (
+                <div className="dish-photo dish-photo-placeholder" style={{ width: 56, height: 56 }}>🍽️</div>
+              )}
+              <input
+                className="input"
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try {
+                    setNewPhoto(await fileToPhotoDataUrl(f));
+                  } catch {
+                    showToast('Не удалось загрузить фото', 'error');
+                  }
+                }}
+              />
+              {newPhoto && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNewPhoto(null)}>Убрать</button>
+              )}
+            </div>
           </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={saving || !sessionActive}>
             {saving ? 'Добавление...' : 'Добавить в доп-меню'}

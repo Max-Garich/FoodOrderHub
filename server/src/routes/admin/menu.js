@@ -18,6 +18,7 @@ const dailySchema = z.object({
     .int('Лимит порций должен быть целым числом')
     .min(0, 'Лимит порций не может быть отрицательным'),
   menuItemId: z.coerce.number().int().positive().optional().nullable(),
+  photoUrl: z.string().max(700000, 'Фото слишком большое (до ~500 КБ)').optional().nullable(),
 });
 
 const catalogSchema = z.object({
@@ -166,7 +167,7 @@ router.post('/daily', async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: zodErrorMessage(parsed.error) });
     }
-    const { menuItemId, itemName, price, category, maxQuantity } = parsed.data;
+    const { menuItemId, itemName, price, category, maxQuantity, photoUrl: bodyPhoto } = parsed.data;
 
     // Найти активную сессию или черновик на сегодня
     const today = new Date().toISOString().split('T')[0];
@@ -191,15 +192,20 @@ router.post('/daily', async (req, res) => {
     }
 
     // Блюдо из справочника: взять фото и запомнить использованные цену/порции,
-    // чтобы в следующий раз «В меню» подставило последние данные
-    let photoUrl = null;
+    // чтобы в следующий раз «В меню» подставило последние данные.
+    // Явно переданное фото (из формы главы столовой) приоритетнее.
+    let photoUrl = bodyPhoto || null;
     if (menuItemId) {
       const catalogItem = await prisma.menuItem.findUnique({ where: { id: menuItemId } });
       if (catalogItem) {
-        photoUrl = catalogItem.photoUrl;
+        photoUrl = photoUrl || catalogItem.photoUrl;
         await prisma.menuItem.update({
           where: { id: menuItemId },
-          data: { defaultPrice: price, defaultMaxQuantity: maxQuantity },
+          data: {
+            defaultPrice: price,
+            defaultMaxQuantity: maxQuantity,
+            ...(photoUrl ? { photoUrl } : {}),
+          },
         });
       }
     }
@@ -232,7 +238,7 @@ router.post('/additional', async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: zodErrorMessage(parsed.error) });
     }
-    const { menuItemId, itemName, price, category, maxQuantity } = parsed.data;
+    const { menuItemId, itemName, price, category, maxQuantity, photoUrl: bodyPhoto } = parsed.data;
 
     const activeSession = await prisma.orderSession.findFirst({
       where: { isActive: true },
@@ -242,14 +248,18 @@ router.post('/additional', async (req, res) => {
     }
 
     // Фото из справочника + запоминание использованных цены/порций
-    let photoUrl = null;
+    let photoUrl = bodyPhoto || null;
     if (menuItemId) {
       const catalogItem = await prisma.menuItem.findUnique({ where: { id: menuItemId } });
       if (catalogItem) {
-        photoUrl = catalogItem.photoUrl;
+        photoUrl = photoUrl || catalogItem.photoUrl;
         await prisma.menuItem.update({
           where: { id: menuItemId },
-          data: { defaultPrice: price, defaultMaxQuantity: maxQuantity },
+          data: {
+            defaultPrice: price,
+            defaultMaxQuantity: maxQuantity,
+            ...(photoUrl ? { photoUrl } : {}),
+          },
         });
       }
     }

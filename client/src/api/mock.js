@@ -574,14 +574,15 @@ const routes = [
       if (body.maxQuantity === undefined || body.maxQuantity === null || parseInt(body.maxQuantity) < 0) {
         throw { status: 400, error: 'Укажите лимит порций' };
       }
-      // Фото из справочника + запоминание последних цены/порций
-      let photoUrl = null;
+      // Фото: явное из формы приоритетнее фото из справочника + запоминание последних цены/порций
+      let photoUrl = body.photoUrl || null;
       if (body.menuItemId) {
         const cat = mockState.menuItems.find(i => i.id === parseInt(body.menuItemId));
         if (cat) {
-          photoUrl = cat.photoUrl || null;
+          photoUrl = photoUrl || cat.photoUrl || null;
           cat.defaultPrice = parseFloat(body.price);
           cat.defaultMaxQuantity = parseInt(body.maxQuantity);
+          if (photoUrl) cat.photoUrl = photoUrl;
         }
       }
       const item = {
@@ -629,13 +630,14 @@ const routes = [
       if (body.maxQuantity === undefined || parseInt(body.maxQuantity) < 0) {
         throw { status: 400, error: 'Укажите лимит порций' };
       }
-      let photoUrl = null;
+      let photoUrl = body.photoUrl || null;
       if (body.menuItemId) {
         const cat = mockState.menuItems.find(i => i.id === parseInt(body.menuItemId));
         if (cat) {
-          photoUrl = cat.photoUrl || null;
+          photoUrl = photoUrl || cat.photoUrl || null;
           cat.defaultPrice = parseFloat(body.price);
           cat.defaultMaxQuantity = parseInt(body.maxQuantity);
+          if (photoUrl) cat.photoUrl = photoUrl;
         }
       }
       const item = {
