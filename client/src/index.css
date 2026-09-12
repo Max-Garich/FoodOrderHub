@@ -1135,20 +1135,25 @@ input.counter-value::-webkit-inner-spin-button {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(0, 0, 0, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
   animation: cardFloatIn 0.25s var(--spring);
+  overscroll-behavior: contain;
 }
 
+/* Фото целиком: пропорции не искажаем (contain),
+   размер — не больше экрана (100% ширины/высоты оверлея) */
 .lightbox-img {
-  max-width: 94vw;
-  max-height: 90vh;
+  width: 100%;
+  height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh; /* мобильные браузеры: реальная высота экрана */
   object-fit: contain;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  padding: 12px;
+  box-sizing: border-box;
 }
 
 .lightbox-close {

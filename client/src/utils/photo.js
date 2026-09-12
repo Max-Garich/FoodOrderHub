@@ -1,6 +1,6 @@
-// Фото → маленький JPEG data-URL (максимум 480px, ~30-60 КБ).
-// Используется справочником блюд (супер-админ) и формами меню (глава столовой).
-export function fileToPhotoDataUrl(file, maxSize = 480, quality = 0.75) {
+// Фото → JPEG data-URL. 1024px — чтобы на весь экран (лайтбокс) фото было резким.
+// ~100-200 КБ в base64 — приемлемо для Postgres.
+export function fileToPhotoDataUrl(file, maxSize = 1024, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
