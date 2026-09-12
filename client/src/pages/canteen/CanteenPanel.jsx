@@ -156,22 +156,22 @@ function MenuTab({ showToast }) {
                   </div>
                 </form>
               ) : (
-                <div className="menu-card">
-                  <div className="menu-card-info">
-                    <div className="text-xs text-muted" style={{ marginBottom: 2 }}>{item.category || 'Прочее'}</div>
+                <div className="menu-item-admin">
+                  <div className="text-xs text-muted">{item.category || 'Прочее'}</div>
+                  <div className="menu-item-admin-main">
                     <div className="menu-card-name">{item.itemName}</div>
                     <div className="menu-card-price">
                       ₽{item.price.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
                     </div>
-                    <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                      <span className="badge badge-primary">Лимит: {item.maxQuantity ?? '—'}</span>
-                      <span className="badge badge-warning">Заказано: {item.orderedQuantity ?? 0}</span>
-                      <span className={`badge ${remaining <= 0 ? 'badge-danger' : 'badge-success'}`}>
-                        Осталось: {remaining}
-                      </span>
-                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div className="menu-item-admin-badges">
+                    <span className="badge badge-primary">Лимит: {item.maxQuantity ?? '—'}</span>
+                    <span className="badge badge-warning">Заказано: {item.orderedQuantity ?? 0}</span>
+                    <span className={`badge ${remaining <= 0 ? 'badge-danger' : 'badge-success'}`}>
+                      Осталось: {remaining}
+                    </span>
+                  </div>
+                  <div className="menu-item-admin-actions">
                     <button className="btn btn-ghost btn-sm" onClick={() => startEdit(item)}>Изменить</button>
                     <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(item.id)}>Удалить</button>
                   </div>
@@ -298,24 +298,26 @@ function AdditionalTab({ showToast }) {
           const remaining = item.remaining ?? Math.max(0, (item.maxQuantity || 0) - (item.orderedQuantity || 0));
           return (
             <div className="card" key={item.id} style={{ marginBottom: 8 }}>
-              <div className="menu-card">
-                <div className="menu-card-info">
-                  <div className="text-xs text-muted" style={{ marginBottom: 2 }}>{item.category || 'Прочее'}</div>
+              <div className="menu-item-admin">
+                <div className="text-xs text-muted">{item.category || 'Прочее'}</div>
+                <div className="menu-item-admin-main">
                   <div className="menu-card-name">{item.itemName}</div>
                   <div className="menu-card-price">
                     ₽{item.price.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                    <span className="badge badge-primary">Лимит: {item.maxQuantity ?? '—'}</span>
-                    <span className="badge badge-warning">Заказано: {item.orderedQuantity ?? 0}</span>
-                    <span className={`badge ${remaining <= 0 ? 'badge-danger' : 'badge-success'}`}>
-                      Осталось: {remaining}
-                    </span>
-                  </div>
                 </div>
-                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)', flexShrink: 0 }} onClick={() => handleDelete(item.id)}>
-                  Удалить
-                </button>
+                <div className="menu-item-admin-badges">
+                  <span className="badge badge-primary">Лимит: {item.maxQuantity ?? '—'}</span>
+                  <span className="badge badge-warning">Заказано: {item.orderedQuantity ?? 0}</span>
+                  <span className={`badge ${remaining <= 0 ? 'badge-danger' : 'badge-success'}`}>
+                    Осталось: {remaining}
+                  </span>
+                </div>
+                <div className="menu-item-admin-actions">
+                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(item.id)}>
+                    Удалить
+                  </button>
+                </div>
               </div>
             </div>
           );

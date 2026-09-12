@@ -8,6 +8,13 @@ const ROLE_TITLES = {
   SUPER_ADMIN: 'Главный администратор',
 };
 
+// Короткие заголовки для узких экранов (иначе topbar не влезает)
+const ROLE_TITLES_SHORT = {
+  MANAGER: 'Менеджер',
+  CANTEEN_HEAD: 'Столовая',
+  SUPER_ADMIN: 'Админ',
+};
+
 // Общий layout для панелей ролей: topbar (роль + «На сайт» для менеджера + выход)
 // и bottom-nav с вкладками текущей панели (табы — внутреннее состояние панели)
 export default function PanelLayout({ tabs, activeTab, onTabChange, topbarExtra, children }) {
@@ -20,13 +27,15 @@ export default function PanelLayout({ tabs, activeTab, onTabChange, topbarExtra,
   };
 
   const title = ROLE_TITLES[user?.role] || 'Панель управления';
+  const titleShort = ROLE_TITLES_SHORT[user?.role] || 'Панель';
 
   return (
     <>
       <div className="topbar">
         <div className="topbar-logo">
           <span>🍽️</span>
-          <span>{title}</span>
+          <span className="topbar-title-full">{title}</span>
+          <span className="topbar-title-short">{titleShort}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {topbarExtra}

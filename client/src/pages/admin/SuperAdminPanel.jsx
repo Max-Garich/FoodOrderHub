@@ -48,8 +48,9 @@ export default function SuperAdminPanel() {
       activeTab={tab}
       onTabChange={setTab}
       topbarExtra={
-        <button className="btn btn-ghost btn-sm" onClick={() => setShowRequests(true)}>
-          Все заявки
+        <button className="btn btn-ghost btn-sm topbar-requests-btn" onClick={() => setShowRequests(true)}>
+          <span className="topbar-requests-full">Все заявки</span>
+          <span className="topbar-requests-short">Заявки</span>
           {requestsCount > 0 && (
             <span className="badge badge-warning" style={{ marginLeft: 6 }}>{requestsCount}</span>
           )}
@@ -162,6 +163,14 @@ function AllRequestsModal({ onClose, onChanged, showToast }) {
 }
 
 // ===== Группы: главный экран с кнопками + детальная страница группы =====
+const pluralRequests = (n) => {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'заявка';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'заявки';
+  return 'заявок';
+};
+
 function GroupsTab({ showToast }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -251,7 +260,7 @@ function GroupsTab({ showToast }) {
               {g.memberCount} участник(ов)
               {g.pendingCount > 0 && (
                 <span className="badge badge-warning" style={{ marginLeft: 6 }}>
-                  {g.pendingCount} заявок
+                  {g.pendingCount} {pluralRequests(g.pendingCount)}
                 </span>
               )}
             </span>
@@ -292,11 +301,12 @@ function GroupsTab({ showToast }) {
               </div>
             </form>
           ) : (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700 }}>{g.name}</div>
-                <div className="text-sm text-muted">
-                  {g.paymentPhone || 'телефон не задан'} · {g.paymentBank || 'банк не задан'}
+                <div className="text-sm text-muted" style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 6px' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>{g.paymentPhone || 'телефон не задан'}</span>
+                  <span style={{ whiteSpace: 'nowrap' }}>· {g.paymentBank || 'банк не задан'}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -385,8 +395,9 @@ function GroupDetail({ group, onBack, showToast }) {
       <div className="summary-total" style={{ marginBottom: 16 }}>
         <div className="summary-total-label">Оплата группы</div>
         <div className="summary-total-value" style={{ fontSize: '1.375rem' }}>{group.name}</div>
-        <div className="summary-total-label" style={{ marginTop: 8 }}>
-          {group.paymentPhone || 'телефон не задан'} · {group.paymentBank || 'банк не задан'}
+        <div className="summary-total-label" style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2px 6px' }}>
+          <span style={{ whiteSpace: 'nowrap' }}>{group.paymentPhone || 'телефон не задан'}</span>
+          <span style={{ whiteSpace: 'nowrap' }}>· {group.paymentBank || 'банк не задан'}</span>
         </div>
       </div>
 

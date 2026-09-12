@@ -877,7 +877,6 @@ input.counter-value::-webkit-inner-spin-button {
   margin-bottom: 2px;
   color: var(--text);
   overflow-wrap: break-word;
-  word-break: break-word;
 }
 
 .menu-card-price {
@@ -1680,6 +1679,8 @@ input.counter-value::-webkit-inner-spin-button {
   justify-content: space-around;
   align-items: stretch;
   gap: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .panel-bottom-nav .tab-btn {
@@ -1700,41 +1701,56 @@ input.counter-value::-webkit-inner-spin-button {
   pointer-events: none;
 }
 
-.panel-bottom-nav .tab-btn:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 25%;
-  height: 50%;
-  width: 1px;
-  background: var(--border-light);
-  pointer-events: none;
-}
-
-.panel-bottom-nav .tab-btn:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 25%;
-  height: 50%;
-  width: 1px;
-  background: var(--border-light);
-  pointer-events: none;
-}
-
-.panel-bottom-nav .tab-btn:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 25%;
-  height: 50%;
-  width: 1px;
-  background: var(--border-light);
-  pointer-events: none;
-}
-
 .panel-bottom-nav .tab-btn.active {
   box-shadow: none;
+}
+
+/* ===== Карточка позиции меню в админке (вертикальная, не сжимается в столбик) ===== */
+.menu-item-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menu-item-admin-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.menu-item-admin-main .menu-card-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-item-admin-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.menu-item-admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ===== Заголовок topbar: полный на широких, короткий на узких ===== */
+.topbar-title-short { display: none; }
+.topbar-requests-short { display: none; }
+
+@media (max-width: 520px) {
+  .topbar-title-full { display: none; }
+  .topbar-title-short { display: inline; }
+  .topbar-requests-full { display: none; }
+  .topbar-requests-short { display: inline; }
+  .topbar { padding: 0 10px; gap: 6px; }
+  .topbar-logo { font-size: 1rem; gap: 6px; }
+  .panel-bottom-nav .tab-btn {
+    padding: 9px 4px;
+    font-size: 0.75rem;
+  }
 }
 
 /* ===== Карточка группы в отчётах ===== */
