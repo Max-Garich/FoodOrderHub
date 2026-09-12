@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import PanelLayout from '../../components/PanelLayout.jsx';
 import { canteenApi } from '../../api/index.js';
 import { fileToPhotoDataUrl } from '../../utils/photo.js';
+import DishesTab from '../../components/DishesTab.jsx';
+import LightboxImg from '../../components/LightboxImg.jsx';
 
 const TABS = [
   { id: 'menu', label: 'Меню' },
+  { id: 'dishes', label: 'Блюда' },
   { id: 'additional', label: 'Доп-меню' },
   { id: 'session', label: 'Сессия' },
   { id: 'reports', label: 'Отчёты' },
@@ -26,6 +29,7 @@ export default function CanteenPanel() {
       <div className="page page-admin">
         {toast && <div className={`toast ${toast.type}`}>{toast.message}</div>}
         {tab === 'menu' && <MenuTab showToast={showToast} />}
+        {tab === 'dishes' && <DishesTab showToast={showToast} />}
         {tab === 'additional' && <AdditionalTab showToast={showToast} />}
         {tab === 'session' && <SessionTab showToast={showToast} />}
         {tab === 'reports' && <ReportsTab showToast={showToast} />}
@@ -190,7 +194,7 @@ function MenuTab({ showToast }) {
                   <div className="text-xs text-muted">{item.category || 'Прочее'}</div>
                   <div className="menu-item-admin-main">
                     {item.photoUrl && (
-                      <img className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
+                      <LightboxImg className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
                     )}
                     <div className="menu-card-name">{item.itemName}</div>
                     <div className="menu-card-price">
@@ -352,7 +356,7 @@ function AdditionalTab({ showToast }) {
                 <div className="text-xs text-muted">{item.category || 'Прочее'}</div>
                 <div className="menu-item-admin-main">
                   {item.photoUrl && (
-                    <img className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
+                    <LightboxImg className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
                   )}
                   <div className="menu-card-name">{item.itemName}</div>
                   <div className="menu-card-price">

@@ -1127,7 +1127,51 @@ input.counter-value::-webkit-inner-spin-button {
   object-fit: cover;
   border-radius: 12px;
   flex-shrink: 0;
+  cursor: zoom-in;
 }
+
+/* ===== Лайтбокс: фото на весь экран по клику ===== */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: cardFloatIn 0.25s var(--spring);
+}
+
+.lightbox-img {
+  max-width: 94vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.lightbox-close {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top, 0));
+  right: calc(16px + env(safe-area-inset-right, 0));
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-close:hover { background: rgba(255, 255, 255, 0.28); }
+
+/* Фото в карточках справочника тоже зумятся */
+.dish-photo-box .dish-photo { cursor: zoom-in; }
 
 /* ===== Summary ===== */
 .summary-section { margin-top: 20px; }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { menuApi, orderApi } from '../../api/index.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import LightboxImg from '../../components/LightboxImg.jsx';
 
 export default function MenuPage() {
   const { user, balance, refreshProfile } = useAuth();
@@ -154,7 +155,7 @@ export default function MenuPage() {
       <div className="card menu-card" key={item.id} style={{ marginBottom: 8, opacity: soldOut ? 0.6 : 1 }}>
         <div className="menu-card-info">
           {item.photoUrl && (
-            <img className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
+            <LightboxImg className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
           )}
           {item.menuItemId && (
             <button
