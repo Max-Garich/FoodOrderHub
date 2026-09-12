@@ -288,7 +288,7 @@ router.post('/additional', async (req, res) => {
 router.put('/daily/:id', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
-    const { itemName, price, isAvailable, category, maxQuantity } = req.body;
+    const { itemName, price, isAvailable, category, maxQuantity, photoUrl } = req.body;
 
     const existing = await prisma.dailyMenu.findUnique({
       where: { id: parseInt(req.params.id) },
