@@ -31,7 +31,7 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
     });
 
     if (sessions.length === 0) {
-      return res.json({ date, sessions: [], totalRevenue: 0, groups: [], teachers: [] });
+      return res.json({ date, sessions: [], totalRevenue: 0, dishes: [], groups: [], teachers: [] });
     }
 
     // Менеджер видит только заказы своей группы
@@ -41,6 +41,7 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
     let totalRevenue = 0;
     const groupAgg = {};
     const teacherAgg = {};
+    const dishAgg = {}; // общая сводка по блюдам за день: группы + преподаватели + доп-меню
 
     const report = sessions.map((session) => {
       const orders = visibleOrders(session.orders);
@@ -49,6 +50,15 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
 
       // Агрегация по группам и преподавателям (за день, по всем сессиям)
       for (const o of orders) {
+        // Общая сводка по блюдам (включая доп-меню) — считаем по всем заказам
+        for (const item of o.items) {
+          if (!dishAgg[item.itemName]) {
+            dishAgg[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0 };
+          }
+          dishAgg[item.itemName].totalQuantity += item.quantity;
+          dishAgg[item.itemName].totalAmount += item.subtotal;
+        }
+
         if (o.groupId !== null) {
           if (!groupAgg[o.groupId]) {
             groupAgg[o.groupId] = {
@@ -113,6 +123,7 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
       date,
       sessions: report,
       totalRevenue,
+      dishes: Object.values(dishAgg),
       groups: Object.values(groupAgg).map((g) => ({
         groupId: g.groupId,
         groupName: g.groupName,

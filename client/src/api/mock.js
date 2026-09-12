@@ -617,12 +617,13 @@ const routes = [
     handler: async () => {
       requireRole('CANTEEN_HEAD', 'SUPER_ADMIN');
       const orders = mockState.orders.filter(o => o.sessionId === mockState.session.id);
+      const summary = buildSummary(orders);
       return {
         session: { ...mockState.session, dailyMenus: mockState.dailyMenu.filter(d => !d.isAdditional && d.isAvailable) },
         isActive: mockState.session.isActive,
         stats: mockState.session.isActive
-          ? { orderCount: orders.length, totalRevenue: orders.reduce((s, o) => s + o.totalAmount, 0) }
-          : { orderCount: 0, totalRevenue: 0 },
+          ? { orderCount: orders.length, totalRevenue: summary.totalRevenue, groups: summary.groups }
+          : { orderCount: 0, totalRevenue: 0, groups: [] },
       };
     },
   },
@@ -662,6 +663,7 @@ const routes = [
           revenue: summary.totalRevenue,
         }],
         totalRevenue: summary.totalRevenue,
+        dishes: summary.dishes,
         groups: summary.groups,
         teachers: summary.teachers,
       };
@@ -804,8 +806,17 @@ function buildSummary(orders) {
   const groups = {};
   const teachers = {};
   const dishesByGroup = {};
+  const dishes = {}; // общая сводка по блюдам (группы + преподаватели + доп-меню)
 
   for (const order of orders) {
+    for (const item of order.items) {
+      if (!dishes[item.itemName]) {
+        dishes[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0 };
+      }
+      dishes[item.itemName].totalQuantity += item.quantity;
+      dishes[item.itemName].totalAmount += item.subtotal;
+    }
+
     const owner = mockState.users.find(u => u.id === order.userId);
     const ownerName = owner ? `${owner.name} ${owner.surname}` : 'Unknown';
 
@@ -843,6 +854,7 @@ function buildSummary(orders) {
   return {
     totalOrders: orders.length,
     totalRevenue: orders.reduce((s, o) => s + o.totalAmount, 0),
+    dishes: Object.values(dishes),
     groups: Object.values(groups).map(g => ({ ...g, dishes: Object.values(dishesByGroup[g.groupId]) })),
     teachers: Object.values(teachers),
   };

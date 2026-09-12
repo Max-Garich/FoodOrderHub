@@ -358,6 +358,37 @@ function AdditionalTab({ showToast }) {
   );
 }
 
+// ===== Раскрывающаяся строка группы (аккордеон) =====
+// Название группы + стрелка вниз; по клику раскрывается список блюд с порциями.
+function GroupExpandRow({ name, subtitle, dishes }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={`group-expand ${open ? 'open' : ''}`}>
+      <button type="button" className="group-expand-header" onClick={() => setOpen(!open)}>
+        <span className="group-expand-name">
+          {name}
+          <span className="expand-arrow">{open ? '▲' : '▼'}</span>
+        </span>
+        {subtitle && <span className="group-expand-subtitle">{subtitle}</span>}
+      </button>
+      {open && (
+        <div className="group-expand-body">
+          {(dishes || []).map((d, i) => (
+            <div className="summary-row" key={i}>
+              <span>{d.name}</span>
+              <span className="group-expand-qty">{d.totalQuantity} порц.</span>
+            </div>
+          ))}
+          {(!dishes || dishes.length === 0) && (
+            <p className="text-sm text-muted" style={{ margin: 0 }}>Пока ничего не заказано</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== Сессия =====
 function SessionTab({ showToast }) {
   const [sessionData, setSessionData] = useState(null);
@@ -435,6 +466,23 @@ function SessionTab({ showToast }) {
         </div>
       )}
 
+      {/* Живые заказы по группам — аккордеон: нажми на группу, увидишь блюда */}
+      {isActive && stats?.groups?.length > 0 && (
+        <div className="summary-section">
+          <h3>Заказы по группам</h3>
+          <div className="card">
+            {stats.groups.map((g) => (
+              <GroupExpandRow
+                key={g.groupId}
+                name={g.groupName}
+                subtitle={`${g.orderCount} зак. · ₽${g.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 0 })}`}
+                dishes={g.dishes}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 16 }}>
         <h3>Меню на сегодня</h3>
         <p className="text-sm text-muted">{menuCount} позиций</p>
@@ -467,13 +515,13 @@ function SessionTab({ showToast }) {
             <div className="summary-section">
               <h3>Группы</h3>
               <div className="card">
-                {summary.groups.map((g, i) => (
-                  <div className="summary-row" key={i}>
-                    <span>{g.groupName}</span>
-                    <span style={{ fontWeight: 600 }}>
-                      {g.orderCount} заказ. / ₽{g.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+                {summary.groups.map((g) => (
+                  <GroupExpandRow
+                    key={g.groupId}
+                    name={g.groupName}
+                    subtitle={`${g.orderCount} зак. · ₽${g.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 0 })}`}
+                    dishes={g.dishes}
+                  />
                 ))}
               </div>
             </div>
@@ -550,6 +598,21 @@ function ReportsTab({ showToast }) {
               ₽{report.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
             </div>
           </div>
+
+          {/* Общая сводка по блюдам за день: все группы + преподаватели + доп-меню */}
+          {report.dishes?.length > 0 && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <h3 style={{ marginBottom: 12 }}>Всего заказано за день</h3>
+              {report.dishes.map((d, i) => (
+                <div className="summary-row" key={i}>
+                  <span>{d.name}</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {d.totalQuantity} порц. (₽{d.totalAmount.toLocaleString('ru-RU', { minimumFractionDigits: 0 })})
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Группы */}
           {report.groups?.length > 0 && (

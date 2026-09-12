@@ -31,11 +31,41 @@ router.get('/current', async (req, res) => {
       return res.json({ session: draft || null, isActive: false });
     }
 
-    // Calculate current totals
+    // Calculate current totals + live-разбивка по группам (что заказала каждая)
     const orders = await prisma.order.findMany({
       where: { sessionId: session.id },
+      include: {
+        items: true,
+        user: { select: { id: true, name: true, surname: true } },
+        group: { select: { id: true, name: true } },
+      },
     });
     const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+    // Живая агрегация по группам: заказы + блюда (для аккордеона в сессии)
+    const groupAgg = {};
+    for (const o of orders) {
+      if (o.groupId === null) continue; // заказы преподавателей — отдельно
+      if (!groupAgg[o.groupId]) {
+        groupAgg[o.groupId] = {
+          groupId: o.groupId,
+          groupName: o.group?.name || `Группа #${o.groupId}`,
+          orderCount: 0,
+          totalRevenue: 0,
+          dishes: {},
+        };
+      }
+      const g = groupAgg[o.groupId];
+      g.orderCount += 1;
+      g.totalRevenue += o.totalAmount;
+      for (const item of o.items) {
+        if (!g.dishes[item.itemName]) {
+          g.dishes[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0 };
+        }
+        g.dishes[item.itemName].totalQuantity += item.quantity;
+        g.dishes[item.itemName].totalAmount += item.subtotal;
+      }
+    }
 
     res.json({
       session,
@@ -43,6 +73,13 @@ router.get('/current', async (req, res) => {
       stats: {
         orderCount: orders.length,
         totalRevenue,
+        groups: Object.values(groupAgg).map((g) => ({
+          groupId: g.groupId,
+          groupName: g.groupName,
+          orderCount: g.orderCount,
+          totalRevenue: g.totalRevenue,
+          dishes: Object.values(g.dishes),
+        })),
       },
     });
   } catch (err) {
