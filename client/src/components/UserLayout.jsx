@@ -131,9 +131,9 @@ export default function UserLayout() {
           <span>Профиль</span>
         </NavLink>
         {user?.role === 'MANAGER' && (
-          <NavLink to="/manager">
+          <a href={`${window.location.protocol}//${window.location.hostname}:3002/manager`}>
             <span>Управление</span>
-          </NavLink>
+          </a>
         )}
       </nav>
     </>
