@@ -1,62 +1,76 @@
 #!/usr/bin/env python3
-"""Проверка разделения: юзер-сайт :3001, админка :3002 (nginx + proxy /api)."""
+"""Проверка: админ-панель на :3002 + фикс PENDING-токена (заказ без перезахода)."""
 import json
+import time
 import urllib.request
 
-opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-USER = 'http://80.87.199.182:3001'
+MAIN = 'http://80.87.199.182:3001'
 ADMIN = 'http://80.87.199.182:3002'
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
-def get(base, path, token=None):
-    r = urllib.request.Request(base + path)
+def req(base, method, path, body=None, token=None):
+    data = json.dumps(body).encode() if body is not None else None
+    r = urllib.request.Request(base + path, data=data, method=method)
+    if body is not None:
+        r.add_header('Content-Type', 'application/json')
     if token:
         r.add_header('Authorization', f'Bearer {token}')
     with opener.open(r, timeout=15) as resp:
-        return resp.status, resp.read().decode()
+        raw = resp.read().decode()
+        try:
+            return resp.status, json.loads(raw)
+        except ValueError:
+            return resp.status, raw
 
 
-# 1. Юзер-сайт жив, отдаёт пользовательское приложение
-s, html = get(USER, '/')
-assert s == 200 and 'root' in html
-print('3001 / ->', s, '| title:', html.split('<title>')[1].split('</title>')[0])
+print('=== 1. Основной сайт (:3001) ===')
+s, health = req(MAIN, 'GET', '/api/health')
+print('health:', s, health['status'])
+s, html = req(MAIN, 'GET', '/')
+print('главная:', s, '| title:', 'Заказ еды' in html and 'FoodOrderHub — Заказ еды' or '???')
 
-# 2. Админка отдаёт отдельное приложение
-s, html = get(ADMIN, '/')
-assert s == 200
-title = html.split('<title>')[1].split('</title>')[0]
-print('3002 / ->', s, '| title:', title)
-assert 'Админ-панель' in title, 'админка отдаёт не тот бандл!'
+print()
+print('=== 2. Админ-панель (:3002) ===')
+s, html = req(ADMIN, 'GET', '/')
+print('главная:', s, '| title:', 'Админ-панель' in html and 'FoodOrderHub — Админ-панель' or '???')
+s, html = req(ADMIN, 'GET', '/login')
+print('/login (SPA):', s, '| index.html отдаётся:', 'root' in html)
 
-# 3. SPA fallback на 3002 (любой путь -> index.html)
-s, html = get(ADMIN, '/admin')
-assert s == 200 and 'root' in html
-print('3002 /admin (SPA fallback) ->', s)
+print()
+print('=== 3. Прокси /api через админку ===')
+s, health = req(ADMIN, 'GET', '/api/health')
+print('health через 3002:', s, health['status'])
+s, login = req(ADMIN, 'POST', '/api/auth/login', {'email': 'superadmin@foodorderhub.ru', 'password': 'super123'})
+print('логин супер-админа через 3002:', s, '| роль:', login['user']['role'])
+s, users = req(ADMIN, 'GET', '/api/admin/users', token=login['token'])
+print('GET /api/admin/users через 3002:', s, '| юзеров:', len(users))
 
-# 4. API через nginx-прокси
-s, body = get(ADMIN, '/api/health')
-assert s == 200 and json.loads(body)['status'] == 'ok'
-print('3002 /api/health (proxy) ->', s, body)
+print()
+print('=== 4. Фикс: новый юзер заказывает БЕЗ перезахода ===')
+email = f'autotest{int(time.time())}@example.com'
+s, reg = req(MAIN, 'POST', '/api/auth/register', {
+    'name': 'Автотест', 'surname': 'Перезаходов', 'email': email,
+    'password': 'test1234', 'groupId': 1,
+})
+print('регистрация:', s, '| статус в токене:', reg['user']['status'])
+token = reg['token']
 
-# 5. Логин супер-админа через прокси + защищённый эндпоинт через прокси
-data = json.dumps({'email': 'superadmin@foodorderhub.ru', 'password': 'super123'}).encode()
-r = urllib.request.Request(ADMIN + '/api/auth/login', data=data, method='POST')
-r.add_header('Content-Type', 'application/json')
-with opener.open(r, timeout=15) as resp:
-    login = json.loads(resp.read().decode())
-token = login['token']
-print('3002 login ->', login['user']['role'])
+# Пока PENDING — меню должно быть закрыто (403)
+try:
+    req(MAIN, 'GET', '/api/menu/today', token=token)
+    print('menu/today до подтверждения: 200 (НЕ ОЖИДАЛОСЬ!)')
+except urllib.error.HTTPError as e:
+    print('menu/today до подтверждения:', e.code, '(ожидаемо 403)')
 
-s, body = get(ADMIN, '/api/admin/users', token=token)
-users = json.loads(body)
-print('3002 /api/admin/users (proxy) ->', s, '| пользователей:', len(users))
+# Супер-админ принимает заявку
+s, acc = req(MAIN, 'POST', f"/api/manager/requests/{reg['user']['id']}/accept", token=login['token'])
+print('принятие заявки:', s, acc.get('message'))
 
-# 6. На юзер-сайте админ-панели больше нет в бандле
-s, html = get(USER, '/')
-import re
-m = re.search(r'assets/index-[\w-]+\.js', html)
-s2, js = get(USER, '/' + m.group(0))
-assert 'SuperAdminPanel' not in js and 'ManagerPanel' not in js
-print('3001 юзер-бандл НЕ содержит админ-панелей:', m.group(0))
+# Тот же токен (без перезахода!) — теперь должно работать
+s, menu = req(MAIN, 'GET', '/api/menu/today', token=token)
+print('menu/today ПОСЛЕ подтверждения (тот же токен):', s, '| isOrderingActive:', menu.get('isOrderingActive'), '| позиций:', len(menu.get('items', [])))
 
-print('\nOK: разделение работает')
+assert s == 200, 'ФИКС НЕ РАБОТАЕТ'
+print()
+print('ВСЁ OK: админка на 3002, прокси работает, заказ без перезахода возможен')

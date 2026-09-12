@@ -419,6 +419,9 @@ function GroupMembers({ groupId, showToast }) {
   const [topupAmount, setTopupAmount] = useState('');
   const [topupComment, setTopupComment] = useState('');
   const [topupLoading, setTopupLoading] = useState(false);
+  const [resetUser, setResetUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -461,6 +464,25 @@ function GroupMembers({ groupId, showToast }) {
       load();
     } catch (err) {
       showToast(err.message, 'error');
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 4) {
+      showToast('Пароль должен быть не менее 4 символов', 'error');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await adminApi.resetPassword(resetUser.id, newPassword);
+      showToast(res.message);
+      setResetUser(null);
+      setNewPassword('');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -512,6 +534,7 @@ function GroupMembers({ groupId, showToast }) {
                 >
                   Вычесть
                 </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setResetUser(u)}>Пароль</button>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(u.id)}>
                   Удалить
                 </button>
@@ -594,6 +617,27 @@ function GroupMembers({ groupId, showToast }) {
                 >
                   {topupLoading ? 'Обработка...' : topupMode === 'add' ? 'Пополнить' : 'Списать'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка смены пароля */}
+      {resetUser && (
+        <div className="modal-overlay modal-center" onClick={() => setResetUser(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginBottom: 4 }}>Смена пароля</h2>
+            <p className="text-muted" style={{ marginBottom: 16 }}>{resetUser.name} {resetUser.surname}</p>
+            <form onSubmit={handleResetPassword}>
+              <div className="input-group">
+                <label>Новый пароль</label>
+                <input className="input" type="text" placeholder="Введите новый пароль" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus minLength={4} />
+              </div>
+              <p className="text-sm text-muted" style={{ marginBottom: 16 }}>Минимум 4 символа</p>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn btn-outline" type="button" style={{ flex: 1 }} onClick={() => { setResetUser(null); setNewPassword(''); }}>Отмена</button>
+                <button className="btn btn-primary" type="submit" style={{ flex: 1 }} disabled={resetLoading}>{resetLoading ? 'Сохранение...' : 'Сохранить'}</button>
               </div>
             </form>
           </div>
@@ -863,10 +907,10 @@ function TeachersTab({ showToast }) {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Удалить преподавателя из системы?')) return;
+    if (!confirm('Удалить пользователя из системы? (История заказов сохранится)')) return;
     try {
       await adminApi.deleteUser(id);
-      showToast('Преподаватель удалён');
+      showToast('Пользователь удалён');
       load();
     } catch (err) {
       showToast(err.message, 'error');

@@ -120,5 +120,5 @@ export const adminApi = {
   setUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
   deleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
   resetPassword: (id, newPassword) =>
-    request(`/admin/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) }),
+    request(`/admin/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ password: newPassword }) }),
 };
