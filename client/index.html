@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>FoodOrderHub — Заказ еды</title>
     <script>
-      // Apply theme before React renders to prevent flash
+      // Apply theme before React renders to prevent flash.
+      // Приоритет: ручной выбор пользователя (themeChoice) → системная тема.
       (function() {
-        var theme = localStorage.getItem('theme') || 'light';
+        var theme = localStorage.getItem('themeChoice');
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
         document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>
