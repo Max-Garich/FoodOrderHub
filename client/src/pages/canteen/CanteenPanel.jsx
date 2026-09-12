@@ -260,7 +260,7 @@ function MenuTab({ showToast }) {
               )}
             </div>
           </div>
-          <button className="btn btn-primary btn-block" type="submit" disabled={saving}>
+          <button className="btn btn-primary btn-block btn-lg" type="submit" disabled={saving}>
             {saving ? 'Добавление...' : 'Добавить в меню'}
           </button>
         </form>
@@ -433,7 +433,7 @@ function AdditionalTab({ showToast }) {
               )}
             </div>
           </div>
-          <button className="btn btn-primary btn-block" type="submit" disabled={saving || !sessionActive}>
+          <button className="btn btn-primary btn-block btn-lg" type="submit" disabled={saving || !sessionActive}>
             {saving ? 'Добавление...' : 'Добавить в доп-меню'}
           </button>
         </form>

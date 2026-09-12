@@ -221,7 +221,7 @@ export default function DishesTab({ showToast }) {
               )}
             </div>
           </div>
-          <button className="btn btn-primary btn-block" type="submit" disabled={saving}>
+          <button className="btn btn-primary btn-block btn-lg" type="submit" disabled={saving}>
             {saving ? 'Сохранение...' : 'Сохранить блюдо'}
           </button>
         </form>
