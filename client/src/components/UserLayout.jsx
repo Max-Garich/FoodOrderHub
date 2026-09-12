@@ -3,6 +3,7 @@ import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { useAuth, roleHome } from '../context/AuthContext.jsx';
 import { orderApi } from '../api/index.js';
 import ThemeToggle from './ThemeToggle.jsx';
+import { adminPanelUrl } from '../utils/adminUrl.js';
 
 export default function UserLayout() {
   const { user, balance, loading, isAuthenticated, isPending } = useAuth();
@@ -131,7 +132,7 @@ export default function UserLayout() {
           <span>Профиль</span>
         </NavLink>
         {user?.role === 'MANAGER' && (
-          <a href={`${window.location.protocol}//${window.location.hostname}:3002/manager`}>
+          <a href={adminPanelUrl('/manager')}>
             <span>Управление</span>
           </a>
         )}

@@ -5,7 +5,9 @@ services:
       target: app
     restart: always
     ports:
-      - "3001:3001"
+      # Только localhost: наружу сайт отдаёт nginx (80/443) на самом VPS.
+      # Если nginx на хосте не используется — замените на "3001:3001".
+      - "127.0.0.1:3001:3001"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-foodorderhub}:${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env}@db:5432/${POSTGRES_DB:-foodorderhub}?schema=public
       - JWT_SECRET=${JWT_SECRET:?Задайте JWT_SECRET в .env}
@@ -23,7 +25,8 @@ services:
       target: admin
     restart: always
     ports:
-      - "3002:80"
+      # Только localhost (см. комментарий у сервиса app).
+      - "127.0.0.1:3002:80"
     depends_on:
       - app
 

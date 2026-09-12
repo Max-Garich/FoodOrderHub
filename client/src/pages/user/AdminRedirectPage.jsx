@@ -1,15 +1,14 @@
 import { useAuth, roleHome } from '../../context/AuthContext.jsx';
 import ThemeToggle from '../../components/ThemeToggle.jsx';
+import { adminPanelUrl } from '../../utils/adminUrl.js';
 
-// Страница на ОСНОВНОМ сайте (:3001) для админов (супер-админ, глава столовой).
-// Их панели живут в отдельной админ-панели на порту 3002.
+// Страница на ОСНОВНОМ сайте для админов (супер-админ, глава столовой).
+// Их панели живут в отдельной админ-панели: https://admin.food-hub27.online
+// (на проде) или http://<host>:3002 (локальная разработка / доступ по IP).
 export default function AdminRedirectPage() {
   const { user, logout } = useAuth();
 
-  const adminUrl = () => {
-    const path = roleHome(user); // /admin, /canteen или /manager
-    return `${window.location.protocol}//${window.location.hostname}:3002${path}`;
-  };
+  const adminUrl = () => adminPanelUrl(roleHome(user)); // /admin, /canteen или /manager
 
   return (
     <div className="login-page">
