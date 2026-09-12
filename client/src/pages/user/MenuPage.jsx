@@ -295,8 +295,19 @@ export default function MenuPage() {
               )}
               <button
                 className="btn btn-primary btn-block btn-lg"
-                disabled={!canAfford}
-                onClick={() => setShowConfirm(true)}
+                onClick={() => {
+                  if (!canAfford) {
+                    // Не молчим: объясняем, почему заказ не оформляется
+                    showToast(
+                      `Недостаточно средств: на балансе ₽${(balance ?? 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}, ` +
+                      `а заказ на ₽${totalAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}. ` +
+                      'Попросите менеджера группы пополнить баланс.',
+                      'error'
+                    );
+                    return;
+                  }
+                  setShowConfirm(true);
+                }}
               >
                 {canAfford ? 'Оформить заказ' : 'Пополните баланс'}
               </button>

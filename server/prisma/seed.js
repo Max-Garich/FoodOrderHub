@@ -65,7 +65,7 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
+  const manager2 = await prisma.user.upsert({
     where: { email: 'manager102@foodorderhub.ru' },
     update: {},
     create: {
@@ -124,8 +124,9 @@ async function main() {
     },
   });
 
-  // Баланс тестовому юзеру и менеджеру
-  for (const u of [testUser, manager1]) {
+  // Баланс тестовому юзеру и менеджерам (у всех не-преподавателей должен быть баланс,
+  // иначе кнопка заказа блокируется)
+  for (const u of [testUser, manager1, manager2]) {
     await prisma.balance.upsert({
       where: { userId: u.id },
       update: {},
