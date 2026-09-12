@@ -96,13 +96,15 @@ model BalanceHistory {
 }
 
 model MenuItem {
-  id           Int      @id @default(autoincrement())
-  name         String
-  description  String?
-  category     String?  @default("Прочее")
-  defaultPrice Float?   @map("default_price")
-  isDeleted    Boolean  @default(false) @map("is_deleted")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id                 Int      @id @default(autoincrement())
+  name               String
+  description        String?
+  category           String?  @default("Прочее")
+  defaultPrice       Float?   @map("default_price")
+  defaultMaxQuantity Int?     @map("default_max_quantity") // последние использованные порции
+  photoUrl           String?  @map("photo_url") // маленькое фото (data:image/... base64)
+  isDeleted          Boolean  @default(false) @map("is_deleted")
+  createdAt          DateTime @default(now()) @map("created_at")
 
   dailyMenus DailyMenu[]
   favorites  Favorite[]
@@ -121,6 +123,7 @@ model DailyMenu {
   orderedQuantity Int      @default(0) @map("ordered_quantity") // сколько уже куплено
   isAdditional    Boolean  @default(false) @map("is_additional") // доп-меню
   isAvailable     Boolean  @default(true) @map("is_available")
+  photoUrl        String?  @map("photo_url") // фото из справочника блюд
   createdAt       DateTime @default(now()) @map("created_at")
 
   session    OrderSession @relation(fields: [sessionId], references: [id])

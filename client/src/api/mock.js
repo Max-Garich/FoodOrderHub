@@ -525,9 +525,26 @@ const routes = [
       const item = {
         id: nextId(mockState.menuItems), name: body.name, description: body.description || null,
         category: body.category || 'Прочее', defaultPrice: body.defaultPrice ? parseFloat(body.defaultPrice) : null,
+        defaultMaxQuantity: body.defaultMaxQuantity != null && body.defaultMaxQuantity !== '' ? parseInt(body.defaultMaxQuantity) : null,
+        photoUrl: body.photoUrl || null,
         isDeleted: false, createdAt: new Date().toISOString(),
       };
       mockState.menuItems.push(item);
+      return item;
+    },
+  },
+  {
+    method: 'PUT', pattern: '/canteen/menu/items/:id',
+    handler: async (m, body) => {
+      requireRole('CANTEEN_HEAD', 'SUPER_ADMIN');
+      const item = mockState.menuItems.find(i => i.id === parseInt(m.id));
+      if (!item) throw { status: 404, error: 'Блюдо не найдено' };
+      if (body.name !== undefined) item.name = body.name;
+      if (body.category !== undefined) item.category = body.category;
+      if (body.description !== undefined) item.description = body.description;
+      if (body.defaultPrice !== undefined) item.defaultPrice = body.defaultPrice === null ? null : parseFloat(body.defaultPrice);
+      if (body.defaultMaxQuantity !== undefined) item.defaultMaxQuantity = body.defaultMaxQuantity === null ? null : parseInt(body.defaultMaxQuantity);
+      if (body.photoUrl !== undefined) item.photoUrl = body.photoUrl || null;
       return item;
     },
   },
@@ -557,11 +574,21 @@ const routes = [
       if (body.maxQuantity === undefined || body.maxQuantity === null || parseInt(body.maxQuantity) < 0) {
         throw { status: 400, error: 'Укажите лимит порций' };
       }
+      // Фото из справочника + запоминание последних цены/порций
+      let photoUrl = null;
+      if (body.menuItemId) {
+        const cat = mockState.menuItems.find(i => i.id === parseInt(body.menuItemId));
+        if (cat) {
+          photoUrl = cat.photoUrl || null;
+          cat.defaultPrice = parseFloat(body.price);
+          cat.defaultMaxQuantity = parseInt(body.maxQuantity);
+        }
+      }
       const item = {
         id: nextId(mockState.dailyMenu), sessionId: mockState.session.id, menuItemId: body.menuItemId || null,
         itemName: body.itemName, category: body.category || 'Прочее', price: parseFloat(body.price),
         maxQuantity: parseInt(body.maxQuantity), orderedQuantity: 0,
-        isAdditional: false, isAvailable: true, createdAt: new Date().toISOString(),
+        isAdditional: false, isAvailable: true, photoUrl, createdAt: new Date().toISOString(),
       };
       mockState.dailyMenu.push(item);
       return dishView(item);
@@ -602,11 +629,20 @@ const routes = [
       if (body.maxQuantity === undefined || parseInt(body.maxQuantity) < 0) {
         throw { status: 400, error: 'Укажите лимит порций' };
       }
+      let photoUrl = null;
+      if (body.menuItemId) {
+        const cat = mockState.menuItems.find(i => i.id === parseInt(body.menuItemId));
+        if (cat) {
+          photoUrl = cat.photoUrl || null;
+          cat.defaultPrice = parseFloat(body.price);
+          cat.defaultMaxQuantity = parseInt(body.maxQuantity);
+        }
+      }
       const item = {
-        id: nextId(mockState.dailyMenu), sessionId: mockState.session.id, menuItemId: null,
+        id: nextId(mockState.dailyMenu), sessionId: mockState.session.id, menuItemId: body.menuItemId || null,
         itemName: body.itemName, category: body.category || 'Прочее', price: parseFloat(body.price),
         maxQuantity: parseInt(body.maxQuantity), orderedQuantity: 0,
-        isAdditional: true, isAvailable: true, createdAt: new Date().toISOString(),
+        isAdditional: true, isAvailable: true, photoUrl, createdAt: new Date().toISOString(),
       };
       mockState.dailyMenu.push(item);
       return dishView(item);

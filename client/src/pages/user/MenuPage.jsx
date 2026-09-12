@@ -153,6 +153,9 @@ export default function MenuPage() {
     return (
       <div className="card menu-card" key={item.id} style={{ marginBottom: 8, opacity: soldOut ? 0.6 : 1 }}>
         <div className="menu-card-info">
+          {item.photoUrl && (
+            <img className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
+          )}
           {item.menuItemId && (
             <button
               className="fav-btn"

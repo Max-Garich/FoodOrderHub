@@ -159,6 +159,9 @@ function MenuTab({ showToast }) {
                 <div className="menu-item-admin">
                   <div className="text-xs text-muted">{item.category || 'Прочее'}</div>
                   <div className="menu-item-admin-main">
+                    {item.photoUrl && (
+                      <img className="menu-card-photo" src={item.photoUrl} alt={item.itemName} loading="lazy" />
+                    )}
                     <div className="menu-card-name">{item.itemName}</div>
                     <div className="menu-card-price">
                       ₽{item.price.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}

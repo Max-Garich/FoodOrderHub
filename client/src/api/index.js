@@ -92,6 +92,7 @@ export const managerApi = {
 export const canteenApi = {
   menuItems: () => request('/canteen/menu/items'),
   createMenuItem: (body) => request('/canteen/menu/items', { method: 'POST', body: JSON.stringify(body) }),
+  updateCatalogItem: (id, body) => request(`/canteen/menu/items/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteCatalogItem: (id) => request(`/canteen/menu/items/${id}`, { method: 'DELETE' }),
 
   dailyMenu: () => request('/canteen/menu/daily'),

@@ -24,7 +24,12 @@ const catalogSchema = z.object({
   name: z.string().min(1, 'Название обязательно'),
   description: z.string().optional().nullable(),
   defaultPrice: z.coerce.number().positive().optional().nullable(),
+  defaultMaxQuantity: z.coerce.number({ invalid_type_error: 'Порции должны быть числом' })
+    .int('Порции должны быть целым числом')
+    .min(0, 'Порции не могут быть отрицательными')
+    .optional().nullable(),
   category: z.string().optional(),
+  photoUrl: z.string().max(700000, 'Фото слишком большое (до ~500 КБ)').optional().nullable(),
 });
 
 // ═══════════════════════════════════════════════
@@ -54,7 +59,7 @@ router.post('/items', async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: zodErrorMessage(parsed.error) });
     }
-    const { name, description, defaultPrice, category } = parsed.data;
+    const { name, description, defaultPrice, defaultMaxQuantity, category, photoUrl } = parsed.data;
 
     const item = await prisma.menuItem.create({
       data: {
@@ -62,6 +67,8 @@ router.post('/items', async (req, res) => {
         description: description || null,
         category: category || 'Прочее',
         defaultPrice: defaultPrice ?? null,
+        defaultMaxQuantity: defaultMaxQuantity ?? null,
+        photoUrl: photoUrl || null,
       },
     });
 
@@ -76,13 +83,17 @@ router.post('/items', async (req, res) => {
 router.put('/items/:id', async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
-    const { name, description, defaultPrice, category } = req.body;
+    const { name, description, defaultPrice, defaultMaxQuantity, category, photoUrl } = req.body;
 
     const data = {};
     if (name !== undefined) data.name = name;
     if (description !== undefined) data.description = description;
     if (defaultPrice !== undefined) data.defaultPrice = defaultPrice === null ? null : parseFloat(defaultPrice);
+    if (defaultMaxQuantity !== undefined) {
+      data.defaultMaxQuantity = defaultMaxQuantity === null ? null : parseInt(defaultMaxQuantity);
+    }
     if (category !== undefined) data.category = category;
+    if (photoUrl !== undefined) data.photoUrl = photoUrl === null ? null : String(photoUrl);
 
     const item = await prisma.menuItem.update({
       where: { id: parseInt(req.params.id) },
@@ -179,6 +190,20 @@ router.post('/daily', async (req, res) => {
       }
     }
 
+    // Блюдо из справочника: взять фото и запомнить использованные цену/порции,
+    // чтобы в следующий раз «В меню» подставило последние данные
+    let photoUrl = null;
+    if (menuItemId) {
+      const catalogItem = await prisma.menuItem.findUnique({ where: { id: menuItemId } });
+      if (catalogItem) {
+        photoUrl = catalogItem.photoUrl;
+        await prisma.menuItem.update({
+          where: { id: menuItemId },
+          data: { defaultPrice: price, defaultMaxQuantity: maxQuantity },
+        });
+      }
+    }
+
     const dailyMenu = await prisma.dailyMenu.create({
       data: {
         sessionId: session.id,
@@ -188,6 +213,7 @@ router.post('/daily', async (req, res) => {
         price,
         maxQuantity,
         isAdditional: false,
+        photoUrl,
       },
     });
 
@@ -215,6 +241,19 @@ router.post('/additional', async (req, res) => {
       return res.status(403).json({ error: 'Доп-меню можно добавлять только во время активной сессии заказов' });
     }
 
+    // Фото из справочника + запоминание использованных цены/порций
+    let photoUrl = null;
+    if (menuItemId) {
+      const catalogItem = await prisma.menuItem.findUnique({ where: { id: menuItemId } });
+      if (catalogItem) {
+        photoUrl = catalogItem.photoUrl;
+        await prisma.menuItem.update({
+          where: { id: menuItemId },
+          data: { defaultPrice: price, defaultMaxQuantity: maxQuantity },
+        });
+      }
+    }
+
     const dailyMenu = await prisma.dailyMenu.create({
       data: {
         sessionId: activeSession.id,
@@ -224,6 +263,7 @@ router.post('/additional', async (req, res) => {
         price,
         maxQuantity,
         isAdditional: true,
+        photoUrl,
       },
     });
 
@@ -264,6 +304,7 @@ router.put('/daily/:id', async (req, res) => {
     if (price !== undefined) data.price = parseFloat(price);
     if (isAvailable !== undefined) data.isAvailable = isAvailable;
     if (maxQuantity !== undefined && maxQuantity !== null) data.maxQuantity = parseInt(maxQuantity);
+    if (photoUrl !== undefined) data.photoUrl = photoUrl === null ? null : String(photoUrl);
 
     const item = await prisma.dailyMenu.update({
       where: { id: existing.id },
