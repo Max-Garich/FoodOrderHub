@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /manager
+Disallow: /canteen
+
+Sitemap: https://food-hub27.online/sitemap.xml
