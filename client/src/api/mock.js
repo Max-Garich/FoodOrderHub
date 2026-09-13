@@ -132,7 +132,12 @@ function requireRole(...roles) {
 }
 
 function publicUser(u) {
-  return { id: u.id, name: u.name, surname: u.surname, email: u.email, role: u.role, status: u.status, groupId: u.groupId ?? null, position: u.position ?? null };
+  return {
+    id: u.id, name: u.name, surname: u.surname, email: u.email, role: u.role, status: u.status,
+    groupId: u.groupId ?? null, position: u.position ?? null,
+    balance: u.role === 'TEACHER' ? null : (u.balance ?? null),
+    group: groupOf(u),
+  };
 }
 
 function dishView(d) {

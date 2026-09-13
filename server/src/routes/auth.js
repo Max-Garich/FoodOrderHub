@@ -163,6 +163,18 @@ router.post('/login', async (req, res) => {
       groupId: user.groupId,
     });
 
+    // Баланс и группа — сразу в ответе логина, чтобы фронт не ждал
+    // отдельного запроса профиля (иначе кнопка заказа мёртвая первые секунды)
+    const [balanceRec, group] = await Promise.all([
+      prisma.balance.findUnique({ where: { userId: user.id } }),
+      user.groupId
+        ? prisma.group.findUnique({
+            where: { id: user.groupId },
+            select: { id: true, name: true, paymentPhone: true, paymentBank: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
     res.json({
       token,
       user: {
@@ -174,6 +186,8 @@ router.post('/login', async (req, res) => {
         status: user.status,
         groupId: user.groupId,
         position: user.position,
+        balance: balanceRec ? balanceRec.amount : null,
+        group,
       },
     });
   } catch (err) {

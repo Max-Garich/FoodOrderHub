@@ -12,7 +12,30 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
   const [toast, setToast] = useState(null);
+
+  const group = user?.group || null;
+  const paymentPhone = group?.paymentPhone || '';
+  const paymentBank = group?.paymentBank || '';
+
+  const copyPhone = async () => {
+    if (!paymentPhone) return;
+    const digits = paymentPhone.replace(/[^\d+]/g, '');
+    try {
+      await navigator.clipboard.writeText(digits);
+    } catch {
+      const input = document.createElement('input');
+      input.value = digits;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    }
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
 
   const loadMenu = useCallback(async () => {
     try {
@@ -296,25 +319,56 @@ export default function MenuPage() {
               <button
                 className="btn btn-primary btn-block btn-lg"
                 onClick={() => {
+                  // При нехватке денег кнопка не мёртвая: показываем, как пополнить
                   if (!canAfford) {
-                    // Не молчим: объясняем, почему заказ не оформляется
-                    showToast(
-                      `Недостаточно средств: на балансе ₽${(balance ?? 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })}, ` +
-                      `а заказ на ₽${totalAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}. ` +
-                      'Попросите менеджера группы пополнить баланс.',
-                      'error'
-                    );
+                    setShowPayment(true);
                     return;
                   }
                   setShowConfirm(true);
                 }}
               >
-                {canAfford ? 'Оформить заказ' : 'Пополните баланс'}
+                {canAfford ? 'Оформить заказ' : 'Пополнить баланс'}
               </button>
             </div>
           </>
           )}
         </>
+      )}
+
+      {/* Окно пополнения: телефон и банк группы */}
+      {showPayment && (
+        <div className="modal-overlay" onClick={() => setShowPayment(false)}>
+          <div className="modal-sheet glass" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle"></div>
+            <h2 style={{ marginBottom: 8 }}>Недостаточно средств</h2>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 16px', fontSize: '0.9375rem' }}>
+              Баланс: ₽{(balance ?? 0).toLocaleString('ru-RU', { minimumFractionDigits: 2 })},
+              заказ: ₽{totalAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
+            </p>
+            {paymentPhone ? (
+              <>
+                <p style={{ margin: '0 0 8px' }}>Чтобы оплатить обеды, переведите деньги:</p>
+                <button className="copy-btn" onClick={copyPhone}>
+                  {copySuccess ? 'Скопировано' : paymentPhone}
+                </button>
+                <div className="payment-bank-box">
+                  <span className="payment-bank-label">Банк</span>
+                  <span className="payment-bank-value">{paymentBank}</span>
+                </div>
+                <p className="payment-note">
+                  После перевода сообщите менеджеру группы для зачисления на баланс
+                </p>
+              </>
+            ) : (
+              <p style={{ margin: '0 0 8px' }}>
+                Менеджер группы ещё не указал реквизиты для пополнения.
+              </p>
+            )}
+            <button className="btn btn-primary btn-block" onClick={() => setShowPayment(false)}>
+              Закрыть
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Confirmation Bottom Sheet */}
