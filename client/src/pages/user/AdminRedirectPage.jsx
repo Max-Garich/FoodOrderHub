@@ -15,7 +15,7 @@ export default function AdminRedirectPage() {
       <ThemeToggle style={{ position: 'fixed', top: 20, right: 20, zIndex: 50 }} />
       <div className="login-card" style={{ textAlign: 'center' }}>
         <div className="login-logo">
-          <div className="logo-icon"><img src="/logo.png" alt="Логотип Ирбитского политехникума" /></div>
+          <div className="logo-icon">🍽️</div>
           <h1>Вы вошли как администратор</h1>
           <p>Панели управления находятся в отдельной админ-панели</p>
         </div>

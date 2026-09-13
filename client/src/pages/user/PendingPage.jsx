@@ -92,7 +92,7 @@ export default function PendingPage() {
       <ThemeToggle style={{ position: 'fixed', top: 20, right: 20, zIndex: 50 }} />
 
       <div className="pending-card glass">
-        <div className="logo-icon"><img src="/logo.png" alt="Логотип Ирбитского политехникума" /></div>
+        <div className="logo-icon">🍽️</div>
         <h1>Заявка отправлена</h1>
         <p className="pending-text">
           {isTeacher
