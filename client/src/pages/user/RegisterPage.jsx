@@ -194,6 +194,10 @@ export default function RegisterPage() {
           Уже есть аккаунт? <Link to="/login">Войти</Link>
         </div>
       </div>
+
+      <div className="login-seo">
+        <p>Регистрация в foodIPThub — сервисе заказа еды в столовой Ирбитского политехникума (ИПТ).</p>
+      </div>
     </div>
   );
 }
