@@ -1143,17 +1143,16 @@ input.counter-value::-webkit-inner-spin-button {
   overscroll-behavior: contain;
 }
 
-/* Фото целиком: пропорции не искажаем (contain),
-   размер — не больше экрана (100% ширины/высоты оверлея) */
+/* Фото целиком на весь экран: без отступов, от края до края.
+   Пропорции не искажаем (contain), размер — не больше экрана */
 .lightbox-img {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; /* мобильные браузеры: реальная высота экрана */
   max-width: 100vw;
-  max-height: 100vh;
-  max-height: 100dvh; /* мобильные браузеры: реальная высота экрана */
+  max-height: 100dvh;
   object-fit: contain;
-  padding: 12px;
-  box-sizing: border-box;
+  display: block;
 }
 
 .lightbox-close {
