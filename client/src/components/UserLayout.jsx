@@ -63,7 +63,7 @@ export default function UserLayout() {
     <>
       <div className="topbar">
         <div className="topbar-logo">
-          <span>🍽️</span>
+          <img src="/logo.png" alt="Логотип Ирбитского политехникума" className="topbar-logo-img" />
           <span>foodIPThub</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

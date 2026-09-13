@@ -549,6 +549,15 @@ input.counter-value::-webkit-inner-spin-button {
   background-clip: text;
 }
 
+/* Логотип Ирбитского политехникума в шапке */
+.topbar-logo-img {
+  width: 26px;
+  height: 30px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
 /* ===== Bottom Navigation ===== */
 .bottom-nav {
   position: fixed;
@@ -1507,7 +1516,15 @@ input.counter-value::-webkit-inner-spin-button {
   margin-bottom: 8px;
   display: inline-block;
   animation: logoFloat 3.5s ease-in-out infinite;
-  filter: drop-shadow(0 4px 12px var(--primary-glow));
+}
+
+/* Логотип Ирбитского политехникума на карточках входа/регистрации */
+.login-logo .logo-icon img {
+  width: 76px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 10px;
 }
 
 @keyframes logoFloat {
@@ -1783,6 +1800,14 @@ input.counter-value::-webkit-inner-spin-button {
 .pending-card .logo-icon {
   margin: 0 auto 4px;
   font-size: 2.4rem;
+}
+
+.pending-card .logo-icon img {
+  width: 56px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
 }
 
 .pending-card h1 {

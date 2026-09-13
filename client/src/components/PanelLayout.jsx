@@ -33,7 +33,7 @@ export default function PanelLayout({ tabs, activeTab, onTabChange, topbarExtra,
     <>
       <div className="topbar">
         <div className="topbar-logo">
-          <span>🍽️</span>
+          <img src="/logo.png" alt="Логотип Ирбитского политехникума" className="topbar-logo-img" />
           <span className="topbar-title-full">{title}</span>
           <span className="topbar-title-short">{titleShort}</span>
         </div>

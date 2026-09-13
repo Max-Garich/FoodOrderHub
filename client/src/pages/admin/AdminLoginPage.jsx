@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
       <ThemeToggle style={{ position: 'fixed', top: 20, right: 20, zIndex: 50 }} />
       <div className="login-card">
         <div className="login-logo">
-          <div className="logo-icon">🍽️</div>
+          <div className="logo-icon"><img src="/logo.png" alt="Логотип Ирбитского политехникума" /></div>
           <h1>Админ-панель</h1>
           <p>foodIPThub · управление системой</p>
         </div>
