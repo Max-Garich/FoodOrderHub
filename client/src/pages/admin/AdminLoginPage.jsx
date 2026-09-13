@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
         <div className="login-logo">
           <div className="logo-icon">🍽️</div>
           <h1>Админ-панель</h1>
-          <p>FoodOrderHub · управление системой</p>
+          <p>foodIPThub · управление системой</p>
         </div>
 
         {error && <div className="login-error">{error}</div>}

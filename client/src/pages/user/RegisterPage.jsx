@@ -74,7 +74,7 @@ export default function RegisterPage() {
       <div className="login-card">
         <div className="login-logo">
           <div className="logo-icon">🍽️</div>
-          <h1>FoodOrderHub</h1>
+          <h1>foodIPThub</h1>
           <p>Пара парой, а обед по расписанию</p>
         </div>
 

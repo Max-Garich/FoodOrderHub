@@ -64,7 +64,7 @@ export default function UserLayout() {
       <div className="topbar">
         <div className="topbar-logo">
           <span>🍽️</span>
-          <span>FoodOrderHub</span>
+          <span>foodIPThub</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <ThemeToggle />
