@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireActive } from '../middleware/auth.js';
-import { updateSessionSummary } from '../utils/reports.js';
+import { scheduleSessionSummary } from '../utils/reports.js';
 
 const router = Router();
 
@@ -130,8 +130,8 @@ router.post('/', requireAuth, requireActive, async (req, res) => {
       return { order, newBalance };
     });
 
-    // Обновляем сводку сессии
-    await updateSessionSummary(prisma, result.order.sessionId);
+    // Планируем отложенный пересчёт сводки (дебаунс — не на каждый заказ)
+    scheduleSessionSummary(prisma, result.order.sessionId);
 
     res.status(201).json({
       order: result.order,
@@ -212,6 +212,7 @@ router.get('/history', requireAuth, requireActive, async (req, res) => {
       where,
       include: { items: true },
       orderBy: { createdAt: 'desc' },
+      take: 200, // защита от разрастания ответа: без даты — последние 200 заказов
     });
 
     res.json(orders);

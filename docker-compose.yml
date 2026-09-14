@@ -33,6 +33,14 @@ services:
   db:
     image: postgres:15-alpine
     restart: always
+    # Тюнинг под VPS с ~1 ГБ RAM (дефолты Postgres рассчитаны на серверы с 4+ ГБ)
+    command: >
+      postgres
+      -c shared_buffers=192MB
+      -c effective_cache_size=512MB
+      -c maintenance_work_mem=64MB
+      -c work_mem=4MB
+      -c max_connections=80
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-foodorderhub}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env}

@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 
@@ -22,18 +23,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const prisma = new PrismaClient();
 
-// Лимиты с запасом на ~600 пользователей.
-// Внимание: считаются ЗАПРОСЫ С ОДНОГО IP, а не пользователи.
+// Лимиты под 1000 пользователей.
+// ВАЖНО: считаются запросы С ОДНОГО IP. Студенты колледжа сидят за NAT —
+// сотни людей могут выходить с одного IP, поэтому лимиты с запасом.
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // окно 1 минута
-  max: 600, // 600 запросов/мин с одного IP (≈36 000/час)
+  max: 3000, // 3000 запросов/мин с одного IP (NAT колледжа + пуллинг фронта)
   standardHeaders: true,
   message: { error: 'Слишком много запросов, попробуйте позже' },
 });
 
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 300, // логины/регистрации: 300/час с одного IP
+  max: 1500, // логины/регистрации: массовый вход на обеде не должен упираться в лимит
   standardHeaders: true,
   message: { error: 'Слишком много попыток входа, попробуйте позже' },
 });
@@ -42,16 +44,20 @@ const authLimiter = rateLimit({
 app.locals.prisma = prisma;
 
 app.use(cors());
-app.use(express.json());
+// gzip для JSON API и статики — меньше трафика, быстрее загрузка на мобильных
+app.use(compression());
+app.use(express.json({ limit: '1mb' }));
 
 // Единая точка применения общего лимита (не дублируем на роутах — иначе счётчик x2)
 app.use(generalLimiter);
 
-// Request logger for debugging
-app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
-  next();
-});
+// Request logger for debugging (в проде отключён — каждый логин/заказ писал строку в stdout)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+    next();
+  });
+}
 
 // Health check (before rate limits)
 app.get('/api/health', (req, res) => {
@@ -88,8 +94,16 @@ app.use('/api/canteen/reports', adminReportRoutes);
 app.use('/api/manager/orders', adminOrderRoutes);
  
 // Serve static files from the React app
+// Ассеты Vite хэшированы → кэш 30 дней; index.html всегда свежий (no-cache)
 const clientDistPath = path.join(__dirname, '../../client/dist');
-app.use(express.static(clientDistPath));
+app.use(express.static(clientDistPath, {
+  maxAge: '30d',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
  
 // Catch-all route for SPA
 app.use((req, res) => {

@@ -1,0 +1,45 @@
+# Отдельный стек ДЛЯ НАГРУЗОЧНОГО ТЕСТА (не прод!).
+# Запуск: docker compose -f docker-compose.loadtest.yml -p foodloadtest up -d --build
+# Остановка (с удалением данных): docker compose -f docker-compose.loadtest.yml -p foodloadtest down -v
+# Отличия от продового: порты 3101, отдельный volume с БД, свои секреты.
+services:
+  app:
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3101:3001"
+    environment:
+      - DATABASE_URL=postgresql://foodorderhub:loadtestpass@db:5432/foodorderhub?schema=public
+      - JWT_SECRET=loadtest-secret-not-for-production
+      - PORT=3001
+      - HOST=0.0.0.0
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    command: >
+      postgres
+      -c shared_buffers=192MB
+      -c effective_cache_size=512MB
+      -c maintenance_work_mem=64MB
+      -c work_mem=4MB
+      -c max_connections=80
+    environment:
+      - POSTGRES_USER=foodorderhub
+      - POSTGRES_PASSWORD=loadtestpass
+      - POSTGRES_DB=foodorderhub
+    volumes:
+      - postgres_data_loadtest:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foodorderhub -d foodorderhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_loadtest:

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
-import { updateSessionSummary } from '../../utils/reports.js';
+import { scheduleSessionSummary } from '../../utils/reports.js';
 
 const router = Router();
 
@@ -30,6 +30,7 @@ router.get('/', requireAuth, requireRole('MANAGER', 'CANTEEN_HEAD', 'SUPER_ADMIN
         user: { select: { id: true, name: true, surname: true, email: true, role: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 2000, // защита от выгрузки всей базы заказов за все времена
     });
 
     res.json(orders);
@@ -153,8 +154,8 @@ router.put('/:orderId/items/:itemId', requireAuth, requireRole('MANAGER', 'CANTE
       return { sessionId: order.sessionId };
     });
 
-    // Обновляем сводку сессии
-    await updateSessionSummary(prisma, sessionId);
+    // Планируем отложенный пересчёт сводки (дебаунс)
+    scheduleSessionSummary(prisma, sessionId);
 
     res.json({ message: 'Позиция обновлена' });
   } catch (err) {

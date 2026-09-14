@@ -1,3 +1,30 @@
+// ═══════════════════════════════════════════════
+// Дебаунс пересчёта сводки.
+// Раньше сводка пересчитывалась при КАЖДОМ заказе: при 1000 пользователей
+// это O(N²) — 1000-й заказ грузит из БД все 999 предыдущих. Теперь
+// горячие пути (создание/правка заказа) только планируют пересчёт,
+// а сам пересчёт выполняется не чаще раза в DEBOUNCE_MS на сессию.
+// Завершение сессии (sessions.js) вызывает updateSessionSummary напрямую —
+// финальная сводка всегда точная.
+// ═══════════════════════════════════════════════
+const DEBOUNCE_MS = 15000;
+const scheduledSummaries = new Map(); // sessionId → timeout
+
+export function scheduleSessionSummary(prisma, sessionId) {
+  if (scheduledSummaries.has(sessionId)) return; // уже запланирован
+  const timer = setTimeout(async () => {
+    scheduledSummaries.delete(sessionId);
+    try {
+      await updateSessionSummary(prisma, sessionId);
+    } catch (err) {
+      console.error('Session summary update error:', err);
+    }
+  }, DEBOUNCE_MS);
+  // Не держать процесс из-за таймера
+  if (timer.unref) timer.unref();
+  scheduledSummaries.set(sessionId, timer);
+}
+
 export async function updateSessionSummary(prisma, sessionId) {
   const session = await prisma.orderSession.findUnique({
     where: { id: sessionId },

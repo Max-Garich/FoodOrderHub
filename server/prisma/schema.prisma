@@ -64,6 +64,8 @@ model User {
   topups         BalanceHistory[] @relation("BalanceHistoryManager")
   sessionsCreated OrderSession[] @relation("SessionCreator")
 
+  @@index([groupId])
+  @@index([status, isDeleted])
   @@map("users")
 }
 
@@ -92,6 +94,8 @@ model BalanceHistory {
   user    User  @relation(fields: [userId], references: [id])
   manager User? @relation("BalanceHistoryManager", fields: [managerId], references: [id])
 
+  @@index([userId])
+  @@index([createdAt])
   @@map("balance_history")
 }
 
@@ -130,6 +134,7 @@ model DailyMenu {
   menuItem   MenuItem?    @relation(fields: [menuItemId], references: [id])
   orderItems OrderItem[]
 
+  @@index([sessionId])
   @@map("daily_menus")
 }
 
@@ -146,6 +151,8 @@ model OrderSession {
   dailyMenus DailyMenu[]
   orders     Order[]
 
+  @@index([isActive])
+  @@index([sessionDate])
   @@map("order_sessions")
 }
 
@@ -162,6 +169,10 @@ model Order {
   group   Group?       @relation(fields: [groupId], references: [id])
   items   OrderItem[]
 
+  @@index([userId, createdAt])
+  @@index([sessionId])
+  @@index([groupId, createdAt])
+  @@index([createdAt])
   @@map("orders")
 }
 
@@ -177,6 +188,8 @@ model OrderItem {
   order     Order     @relation(fields: [orderId], references: [id])
   dailyMenu DailyMenu @relation(fields: [dailyMenuId], references: [id])
 
+  @@index([orderId])
+  @@index([dailyMenuId])
   @@map("order_items")
 }
 
