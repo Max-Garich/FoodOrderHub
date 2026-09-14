@@ -9,7 +9,8 @@ set -e
 docker exec -i foodorderhub-db-1 psql -U foodorderhub -d foodorderhub <<'SQL'
 BEGIN;
 
--- Юзеры-автотесты (сначала их историю, потом самих)
+-- Юзеры-автотесты (сначала балансы и историю, потом самих)
+DELETE FROM balances WHERE user_id IN (SELECT id FROM users WHERE email IN ('smoke1@example.com', 'autotest1789117839@example.com'));
 DELETE FROM balance_history WHERE user_id IN (SELECT id FROM users WHERE email IN ('smoke1@example.com', 'autotest1789117839@example.com'));
 DELETE FROM users WHERE email IN ('smoke1@example.com', 'autotest1789117839@example.com');
 
