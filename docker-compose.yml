@@ -9,7 +9,7 @@ services:
       # Если nginx на хосте не используется — замените на "3001:3001".
       - "127.0.0.1:3001:3001"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-foodorderhub}:${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env}@db:5432/${POSTGRES_DB:-foodorderhub}?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-foodorderhub}:${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env}@db:5432/${POSTGRES_DB:-foodorderhub}?schema=public&connection_limit=20&pool_timeout=30
       - JWT_SECRET=${JWT_SECRET:?Задайте JWT_SECRET в .env}
       - PORT=3001
       - HOST=0.0.0.0

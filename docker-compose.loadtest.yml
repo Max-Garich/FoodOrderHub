@@ -11,7 +11,7 @@ services:
     ports:
       - "127.0.0.1:3101:3001"
     environment:
-      - DATABASE_URL=postgresql://foodorderhub:loadtestpass@db:5432/foodorderhub?schema=public
+      - DATABASE_URL=postgresql://foodorderhub:loadtestpass@db:5432/foodorderhub?schema=public&connection_limit=20&pool_timeout=30
       - JWT_SECRET=loadtest-secret-not-for-production
       - PORT=3001
       - HOST=0.0.0.0

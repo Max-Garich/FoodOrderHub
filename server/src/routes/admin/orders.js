@@ -152,6 +152,10 @@ router.put('/:orderId/items/:itemId', requireAuth, requireRole('MANAGER', 'CANTE
       }
 
       return { sessionId: order.sessionId };
+    }, {
+      // Аналогично созданию заказа: запас под пиковую нагрузку
+      timeout: 20000,
+      maxWait: 20000,
     });
 
     // Планируем отложенный пересчёт сводки (дебаунс)
