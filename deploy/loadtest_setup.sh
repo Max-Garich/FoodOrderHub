@@ -41,7 +41,7 @@ VALUES ('Нагрузка', '+70000000000', 'Тест', true, now());
 
 -- N пользователей: сразу ACTIVE (минуя модерацию), с балансом
 INSERT INTO users (email, password_hash, name, surname, role, status, group_id, is_deleted, created_at, updated_at)
-SELECT 'loadtest' || g, '$HASH', 'Тест', 'Юзер' || g, 'USER', 'ACTIVE',
+SELECT 'loadtest' || g || '@test.local', '$HASH', 'Тест', 'Юзер' || g, 'USER', 'ACTIVE',
        (SELECT id FROM groups WHERE name = 'Нагрузка'), false, now(), now()
 FROM generate_series(1, $N_USERS) g;
 
