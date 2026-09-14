@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { generateToken } from '../middleware/auth.js';
@@ -6,6 +6,10 @@ import { generateToken } from '../middleware/auth.js';
 const router = Router();
 
 const CYRILLIC = /^[А-ЯЁа-яё]+(?:[ -][А-ЯЁа-яё]+)*$/;
+
+// Стоимость bcrypt: 8 раундов (~40мс на 1-ядерном VPS против ~150мс у 10).
+// Для системы заказа обедов этого достаточно; главное — rate limit на /api/auth.
+const BCRYPT_ROUNDS = 8;
 
 const registerSchema = z.object({
   name: z.string().regex(CYRILLIC, 'Имя должно содержать только кириллицу'),
@@ -48,7 +52,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Группа не найдена или недоступна' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const user = await prisma.user.create({
       data: {
         email,
@@ -97,7 +101,7 @@ router.post('/register-teacher', async (req, res) => {
       return res.status(409).json({ error: 'Пользователь с таким email уже существует' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const user = await prisma.user.create({
       data: {
         email,

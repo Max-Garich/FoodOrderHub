@@ -35,7 +35,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 1500, // логины/регистрации: массовый вход на обеде не должен упираться в лимит
+  max: 3000, // логины/регистрации: массовый вход колледжа за NAT не должен упираться в лимит
   standardHeaders: true,
   message: { error: 'Слишком много попыток входа, попробуйте позже' },
 });

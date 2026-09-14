@@ -1,9 +1,12 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 
 const router = Router();
+
+// Стоимость bcrypt — как в auth.js (см. комментарий там)
+const BCRYPT_ROUNDS = 8;
 
 const roleSchema = z.object({
   role: z.enum(['USER', 'TEACHER', 'MANAGER', 'CANTEEN_HEAD', 'SUPER_ADMIN'], {
@@ -416,7 +419,7 @@ router.post('/admin/users/:id/reset-password', requireAuth, requireRole('SUPER_A
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+    const passwordHash = await bcrypt.hash(parsed.data.password, BCRYPT_ROUNDS);
     await prisma.user.update({
       where: { id: target.id },
       data: { passwordHash },
