@@ -21,7 +21,7 @@ curl -sf http://127.0.0.1:3101/api/health > /dev/null || { echo "Приложе�
 echo "Приложение готово."
 
 # bcrypt-хэш пароля — генерируем внутри контейнера приложения (там есть bcryptjs)
-HASH=$(docker exec -w /app/server $APP node -e "console.log(require('bcryptjs').hashSync('$PASS',10))")
+HASH=$(docker exec -w /app/server $APP node -e "console.log(require('bcryptjs').hashSync('$PASS',8))")
 echo "Хэш пароля сгенерирован."
 
 docker exec -i $DB psql -U foodorderhub -d foodorderhub <<SQL
