@@ -241,6 +241,7 @@ function GroupsTab({ showToast }) {
       <GroupDetail
         group={group}
         onBack={() => { setSelectedGroupId(null); load(); }}
+        reload={load}
         showToast={showToast}
       />
     );
@@ -267,6 +268,7 @@ function GroupsTab({ showToast }) {
             <span className="group-btn-name">{g.name}</span>
             <span className="group-btn-meta">
               {g.memberCount} участник(ов)
+              {g.managerName && <span className="text-xs text-muted"> · менеджер: {g.managerName}</span>}
               {g.pendingCount > 0 && (
                 <span className="badge badge-warning" style={{ marginLeft: 6 }}>
                   {g.pendingCount} {pluralRequests(g.pendingCount)}
@@ -390,7 +392,7 @@ function CreateGroupForm({ showToast, onCreated }) {
 }
 
 // ===== Детальная страница группы: участники, заказы, заявки =====
-function GroupDetail({ group, onBack, showToast }) {
+function GroupDetail({ group, onBack, reload, showToast }) {
   const [tab, setTab] = useState('members');
   const today = new Date().toISOString().split('T')[0];
 
@@ -415,6 +417,8 @@ function GroupDetail({ group, onBack, showToast }) {
         </div>
       </div>
 
+      <GroupManagerCard group={group} onChanged={reload} showToast={showToast} />
+
       <div className="tabs" style={{ marginBottom: 16 }}>
         {TABS.map(t => (
           <button
@@ -431,6 +435,73 @@ function GroupDetail({ group, onBack, showToast }) {
       {tab === 'orders' && <GroupOrders groupId={group.id} date={today} showToast={showToast} />}
       {tab === 'requests' && <GroupRequests groupId={group.id} showToast={showToast} />}
     </>
+  );
+}
+
+// ===== Менеджер группы: показать текущего и назначить преподавателя =====
+function GroupManagerCard({ group, onChanged, showToast }) {
+  const [teachers, setTeachers] = useState(null);
+  const [userId, setUserId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    adminApi.teachers()
+      .then((list) => setTeachers(list.filter((t) => t.status === 'ACTIVE')))
+      .catch(() => setTeachers([]));
+  }, []);
+
+  const handleAssign = async (e) => {
+    e.preventDefault();
+    if (!userId) return;
+    if (!confirm(`Назначить менеджером группы «${group.name}»? Прежний менеджер (если был) станет обычным участником.`)) return;
+    setSaving(true);
+    try {
+      const res = await adminApi.assignManager(group.id, parseInt(userId));
+      showToast(res.message);
+      setUserId('');
+      onChanged?.();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <h3 style={{ marginBottom: 8 }}>Менеджер группы</h3>
+      <p className="text-sm text-muted" style={{ margin: '0 0 12px' }}>
+        {group.managerName
+          ? `Текущий менеджер: ${group.managerName}`
+          : 'Менеджер не назначен'}
+      </p>
+      {teachers === null ? (
+        <div className="loader"><div className="spinner"></div></div>
+      ) : teachers.length === 0 ? (
+        <p className="text-sm text-muted" style={{ margin: 0 }}>
+          Нет активных преподавателей. Сначала примите заявку преподавателя во вкладке «Преподаватели».
+        </p>
+      ) : (
+        <form onSubmit={handleAssign} style={{ display: 'flex', gap: 8 }}>
+          <select
+            className="input"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            required
+          >
+            <option value="" disabled>Выберите преподавателя</option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} {t.surname}{t.position ? ` — ${t.position}` : ''}
+              </option>
+            ))}
+          </select>
+          <button className="btn btn-primary btn-sm" type="submit" disabled={saving || !userId} style={{ flexShrink: 0 }}>
+            {saving ? '...' : 'Назначить'}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
 

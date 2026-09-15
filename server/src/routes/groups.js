@@ -54,7 +54,7 @@ router.get('/admin/groups', requireAuth, requireRole('SUPER_ADMIN'), async (req,
       include: {
         users: {
           where: { isDeleted: false },
-          select: { status: true, role: true },
+          select: { name: true, surname: true, status: true, role: true },
         },
       },
       orderBy: { name: 'asc' },
@@ -75,16 +75,81 @@ router.get('/admin/groups', requireAuth, requireRole('SUPER_ADMIN'), async (req,
     res.json(groups.map((g) => {
       const members = g.users.filter((u) => u.status === 'ACTIVE' && u.role !== 'TEACHER');
       const pending = g.users.filter((u) => u.status === 'PENDING');
+      const manager = g.users.find((u) => u.role === 'MANAGER');
       const { users, ...rest } = g;
       return {
         ...rest,
         memberCount: members.length,
         pendingCount: pending.length,
         todayOrderedPeople: todayPeople[g.id]?.size || 0,
+        managerName: manager ? `${manager.name} ${manager.surname}` : null,
       };
     }));
   } catch (err) {
     console.error('Admin groups list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/admin/groups/:id/manager — назначить менеджера группы (SUPER_ADMIN).
+// Обычно назначают преподавателя: он получает роль MANAGER, привязку к группе,
+// активный статус и баланс для заказов. Прежний менеджер группы становится
+// обычным участником (USER).
+router.post('/admin/groups/:id/manager', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const prisma = req.app.locals.prisma;
+    const groupId = parseInt(req.params.id);
+    const userId = parseInt(req.body?.userId);
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Укажите userId пользователя' });
+    }
+
+    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!group) {
+      return res.status(404).json({ error: 'Группа не найдена' });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target || target.isDeleted) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    if (!['TEACHER', 'USER'].includes(target.role)) {
+      return res.status(400).json({ error: 'Менеджером можно назначить преподавателя или участника группы' });
+    }
+    if (target.role === 'USER' && target.groupId !== groupId) {
+      return res.status(400).json({ error: 'Этот участник не состоит в выбранной группе' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Прежний менеджер этой группы становится обычным участником
+      const currentManagers = await tx.user.findMany({
+        where: { groupId, role: 'MANAGER', isDeleted: false, id: { not: userId } },
+      });
+      for (const m of currentManagers) {
+        await tx.user.update({ where: { id: m.id }, data: { role: 'USER' } });
+      }
+
+      // Новому менеджеру: роль, привязка к группе, активный статус
+      await tx.user.update({
+        where: { id: userId },
+        data: { role: 'MANAGER', groupId, status: 'ACTIVE' },
+      });
+
+      // Менеджер заказывает обед через баланс — создаём, если ещё нет
+      const balance = await tx.balance.findUnique({ where: { userId } });
+      if (!balance) {
+        await tx.balance.create({ data: { userId, amount: 0 } });
+      }
+
+      return { name: target.name, surname: target.surname, groupName: group.name };
+    });
+
+    res.json({
+      message: `${result.name} ${result.surname} назначен(а) менеджером группы «${result.groupName}»`,
+    });
+  } catch (err) {
+    console.error('Assign manager error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
