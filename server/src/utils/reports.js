@@ -87,12 +87,14 @@ export async function updateSessionSummary(prisma, sessionId) {
           groupName: order.group?.name || `Группа #${order.groupId}`,
           orderCount: 0,
           totalRevenue: 0,
+          people: new Set(),
           dishes: {},
         };
       }
       const g = groupAgg[order.groupId];
       g.orderCount += 1;
       g.totalRevenue += order.totalAmount;
+      g.people.add(order.userId);
       for (const item of order.items) {
         if (!g.dishes[item.itemName]) {
           g.dishes[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0 };
@@ -119,6 +121,7 @@ export async function updateSessionSummary(prisma, sessionId) {
   }
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const uniquePeople = new Set(orders.map((o) => o.userId));
 
   const summary = {
     sessionId: session.id,
@@ -126,6 +129,7 @@ export async function updateSessionSummary(prisma, sessionId) {
     startedAt: session.startedAt,
     endedAt: session.endedAt || null,
     totalOrders: orders.length,
+    peopleCount: uniquePeople.size,
     totalRevenue,
     dishes: Object.values(dishSummary),
     users: Object.values(userSummary),
@@ -133,6 +137,7 @@ export async function updateSessionSummary(prisma, sessionId) {
       groupId: g.groupId,
       groupName: g.groupName,
       orderCount: g.orderCount,
+      peopleCount: g.people.size,
       totalRevenue: g.totalRevenue,
       dishes: Object.values(g.dishes),
     })),

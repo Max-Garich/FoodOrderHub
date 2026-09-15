@@ -42,7 +42,10 @@ router.get('/current', async (req, res) => {
     });
     const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
 
-    // Живая агрегация по группам: заказы + блюда (для аккордеона в сессии)
+    // Уникальные люди, заказавшие в этой сессии (включая преподавателей)
+    const allPeople = new Set(orders.map((o) => o.userId));
+
+    // Живая агрегация по группам: заказы + блюда + люди (для аккордеона в сессии)
     const groupAgg = {};
     for (const o of orders) {
       if (o.groupId === null) continue; // заказы преподавателей — отдельно
@@ -52,12 +55,14 @@ router.get('/current', async (req, res) => {
           groupName: o.group?.name || `Группа #${o.groupId}`,
           orderCount: 0,
           totalRevenue: 0,
+          people: new Set(),
           dishes: {},
         };
       }
       const g = groupAgg[o.groupId];
       g.orderCount += 1;
       g.totalRevenue += o.totalAmount;
+      g.people.add(o.userId);
       for (const item of o.items) {
         if (!g.dishes[item.itemName]) {
           g.dishes[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0 };
@@ -72,11 +77,13 @@ router.get('/current', async (req, res) => {
       isActive: true,
       stats: {
         orderCount: orders.length,
+        peopleCount: allPeople.size,
         totalRevenue,
         groups: Object.values(groupAgg).map((g) => ({
           groupId: g.groupId,
           groupName: g.groupName,
           orderCount: g.orderCount,
+          peopleCount: g.people.size,
           totalRevenue: g.totalRevenue,
           dishes: Object.values(g.dishes),
         })),

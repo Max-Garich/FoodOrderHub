@@ -184,17 +184,23 @@ function GroupsTab({ showToast }) {
   const [editPhone, setEditPhone] = useState('');
   const [editBank, setEditBank] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     try {
       setGroups(await adminApi.groups());
     } catch (err) {
-      showToast(err.message, 'error');
+      if (!silent) showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   }, [showToast]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Живое обновление счётчика «сегодня заказали» (раз в 30 сек, тихо — без тостов)
+  useEffect(() => {
+    const interval = setInterval(() => load(true), 30000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   const handleToggleActive = async (g) => {
     try {
@@ -267,6 +273,11 @@ function GroupsTab({ showToast }) {
                 </span>
               )}
             </span>
+            {g.todayOrderedPeople > 0 && (
+              <span className="badge badge-success" style={{ marginTop: 6 }}>
+                🍽 Сегодня заказали: {g.todayOrderedPeople} чел.
+              </span>
+            )}
             {!g.isActive && <span className="badge badge-danger" style={{ marginTop: 6 }}>Неактивна</span>}
           </button>
         ))}

@@ -480,17 +480,23 @@ function SessionTab({ showToast }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [summary, setSummary] = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     try {
       setSessionData(await canteenApi.currentSession());
     } catch (err) {
-      showToast(err.message, 'error');
+      if (!silent) showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   }, [showToast]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Живое обновление статистики (людей/заказов/выручки) раз в 30 сек, тихо
+  useEffect(() => {
+    const interval = setInterval(() => load(true), 30000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   const handleStart = async () => {
     setActionLoading(true);
@@ -538,6 +544,10 @@ function SessionTab({ showToast }) {
       {isActive && stats && (
         <div className="admin-stat-grid">
           <div className="card admin-stat">
+            <div className="admin-stat-value">{stats.peopleCount ?? stats.orderCount}</div>
+            <div className="admin-stat-label">Людей заказало</div>
+          </div>
+          <div className="card admin-stat">
             <div className="admin-stat-value">{stats.orderCount}</div>
             <div className="admin-stat-label">Заказов</div>
           </div>
@@ -559,7 +569,7 @@ function SessionTab({ showToast }) {
               <GroupExpandRow
                 key={g.groupId}
                 name={g.groupName}
-                subtitle={`${g.orderCount} зак. · ₽${g.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 0 })}`}
+                subtitle={`${g.peopleCount ?? 0} чел. · ${g.orderCount} зак. · ₽${g.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 0 })}`}
                 dishes={g.dishes}
               />
             ))}
@@ -592,7 +602,7 @@ function SessionTab({ showToast }) {
             <div className="summary-total-value">
               ₽{summary.totalRevenue?.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
             </div>
-            <div className="summary-total-label">Заказов: {summary.totalOrders}</div>
+            <div className="summary-total-label">Заказов: {summary.totalOrders} · Людей: {summary.peopleCount ?? summary.totalOrders}</div>
           </div>
 
           {summary.groups?.length > 0 && (
@@ -603,7 +613,7 @@ function SessionTab({ showToast }) {
                   <GroupExpandRow
                     key={g.groupId}
                     name={g.groupName}
-                    subtitle={`${g.orderCount} зак. · ₽${g.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 0 })}`}
+                    subtitle={`${g.peopleCount ?? 0} чел. · ${g.orderCount} зак. · ₽${g.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 0 })}`}
                     dishes={g.dishes}
                   />
                 ))}
@@ -681,6 +691,9 @@ function ReportsTab({ showToast }) {
             <div className="summary-total-value">
               ₽{report.totalRevenue.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}
             </div>
+            {report.peopleCount != null && (
+              <div className="summary-total-label">Людей заказало: {report.peopleCount}</div>
+            )}
           </div>
 
           {/* Общая сводка по блюдам за день: все группы + преподаватели + доп-меню */}
@@ -711,7 +724,7 @@ function ReportsTab({ showToast }) {
                     </span>
                   </div>
                   <p className="text-sm text-muted" style={{ margin: '0 0 8px' }}>
-                    Заказов: {g.orderCount}
+                    Заказов: {g.orderCount}{g.peopleCount != null && <> · Людей: {g.peopleCount}</>}
                   </p>
                   {g.dishes?.map((d, i) => (
                     <div className="summary-row" key={i}>

@@ -60,11 +60,28 @@ router.get('/admin/groups', requireAuth, requireRole('SUPER_ADMIN'), async (req,
       orderBy: { name: 'asc' },
     });
 
+    // Сколько уникальных людей в каждой группе заказали сегодня
+    // (по сессии с сегодняшней датой; считаем людей, а не заказы)
+    const today = new Date().toISOString().split('T')[0];
+    const todayOrders = await prisma.order.findMany({
+      where: { session: { sessionDate: today }, groupId: { not: null } },
+      select: { groupId: true, userId: true },
+    });
+    const todayPeople = {};
+    for (const o of todayOrders) {
+      (todayPeople[o.groupId] ||= new Set()).add(o.userId);
+    }
+
     res.json(groups.map((g) => {
       const members = g.users.filter((u) => u.status === 'ACTIVE' && u.role !== 'TEACHER');
       const pending = g.users.filter((u) => u.status === 'PENDING');
       const { users, ...rest } = g;
-      return { ...rest, memberCount: members.length, pendingCount: pending.length };
+      return {
+        ...rest,
+        memberCount: members.length,
+        pendingCount: pending.length,
+        todayOrderedPeople: todayPeople[g.id]?.size || 0,
+      };
     }));
   } catch (err) {
     console.error('Admin groups list error:', err);

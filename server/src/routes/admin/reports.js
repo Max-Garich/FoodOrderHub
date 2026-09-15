@@ -42,6 +42,7 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
     const groupAgg = {};
     const teacherAgg = {};
     const dishAgg = {}; // общая сводка по блюдам за день: группы + преподаватели + доп-меню
+    const dayPeople = new Set(); // уникальные люди, заказавшие за день (включая преподов)
 
     const report = sessions.map((session) => {
       const orders = visibleOrders(session.orders);
@@ -50,6 +51,7 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
 
       // Агрегация по группам и преподавателям (за день, по всем сессиям)
       for (const o of orders) {
+        dayPeople.add(o.userId);
         // Общая сводка по блюдам (включая доп-меню) — считаем по всем заказам
         for (const item of o.items) {
           if (!dishAgg[item.itemName]) {
@@ -66,12 +68,14 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
               groupName: o.group?.name || `Группа #${o.groupId}`,
               orderCount: 0,
               totalRevenue: 0,
+              people: new Set(),
               dishes: {},
             };
           }
           const g = groupAgg[o.groupId];
           g.orderCount += 1;
           g.totalRevenue += o.totalAmount;
+          g.people.add(o.userId);
           for (const item of o.items) {
             if (!g.dishes[item.itemName]) {
               g.dishes[item.itemName] = { name: item.itemName, totalQuantity: 0, totalAmount: 0 };
@@ -123,11 +127,13 @@ router.get('/daily', requireAuth, requireRole('CANTEEN_HEAD', 'SUPER_ADMIN', 'MA
       date,
       sessions: report,
       totalRevenue,
+      peopleCount: dayPeople.size,
       dishes: Object.values(dishAgg),
       groups: Object.values(groupAgg).map((g) => ({
         groupId: g.groupId,
         groupName: g.groupName,
         orderCount: g.orderCount,
+        peopleCount: g.people.size,
         totalRevenue: g.totalRevenue,
         dishes: Object.values(g.dishes),
       })),
