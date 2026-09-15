@@ -85,8 +85,11 @@ router.post('/', requireAuth, requireActive, async (req, res) => {
         };
       });
 
-      // 5. Баланс — только для юзеров и менеджеров групп
-      const needsBalance = req.user.role === 'USER' || req.user.role === 'MANAGER';
+      // 5. Баланс — только для юзеров и менеджеров-участников.
+      // Менеджер-препод (managerIsTeacher) заказывает без баланса, как преподаватель.
+      const needsBalance =
+        req.user.role === 'USER' ||
+        (req.user.role === 'MANAGER' && !req.user.managerIsTeacher);
       let newBalance = null;
 
       const order = await tx.order.create({

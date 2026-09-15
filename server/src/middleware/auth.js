@@ -31,7 +31,7 @@ export async function requireAuth(req, res, next) {
     const prisma = req.app.locals.prisma;
     const dbUser = await prisma.user.findUnique({
       where: { id: payload.id },
-      select: { role: true, status: true, groupId: true, isDeleted: true },
+      select: { role: true, status: true, groupId: true, managerIsTeacher: true, isDeleted: true },
     });
     if (!dbUser || dbUser.isDeleted) {
       return res.status(401).json({ error: 'Пользователь не найден' });
@@ -41,6 +41,7 @@ export async function requireAuth(req, res, next) {
       role: dbUser.role,
       status: dbUser.status,
       groupId: dbUser.groupId ?? null,
+      managerIsTeacher: dbUser.managerIsTeacher ?? false,
     };
     next();
   } catch (err) {

@@ -11,7 +11,8 @@ export default function UserLayout() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [todaySpent, setTodaySpent] = useState(0);
 
-  const isTeacher = user?.role === 'TEACHER';
+  // Менеджер-препод — без баланса, как преподаватель
+  const isTeacher = user?.role === 'TEACHER' || user?.managerIsTeacher === true;
   const group = user?.group || null;
   const paymentPhone = group?.paymentPhone || '';
   const paymentBank = group?.paymentBank || '';

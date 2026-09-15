@@ -26,9 +26,6 @@ _, body = req(BASE, 'POST', '/api/auth/login',
 token = json.loads(body)['token']
 
 # Через https
-print('HTTPS POST /api/admin/groups/6/manager:',
-      req(BASE, 'POST', '/api/admin/groups/6/manager', {'userId': 999}, token))
-
-# Через localhost (прокси nginx на VPS не задействован)
-print('LOCAL POST /api/admin/groups/6/manager:',
-      req('http://127.0.0.1:3001', 'POST', '/api/admin/groups/6/manager', {'userId': 999}, token))
+print('HTTPS userId=999:', req(BASE, 'POST', '/api/admin/groups/6/manager', {'userId': 999}, token))
+print('HTTPS userId=15:', req(BASE, 'POST', '/api/admin/groups/6/manager', {'userId': 15}, token))
+print('HTTPS без body:', req(BASE, 'POST', '/api/admin/groups/6/manager', {}, token))

@@ -56,7 +56,8 @@ export function AuthProvider({ children }) {
 
   const isAuthenticated = !!token;
   const isPending = user?.status === 'PENDING';
-  const balance = user?.role === 'TEACHER' ? null : (user?.balance ?? null);
+  // Менеджер-препод (managerIsTeacher) — без баланса, как преподаватель
+  const balance = (user?.role === 'TEACHER' || user?.managerIsTeacher) ? null : (user?.balance ?? null);
 
   return (
     <AuthContext.Provider value={{

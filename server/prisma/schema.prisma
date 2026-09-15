@@ -52,6 +52,9 @@ model User {
   status       Status   @default(PENDING)
   position     String? // должность преподавателя
   groupId      Int?     @map("group_id")
+  // Менеджер, назначенный из преподавателей: сам без баланса (заказывает
+  // как препод), но управляет группой (балансы участников, реквизиты).
+  managerIsTeacher Boolean @default(false) @map("manager_is_teacher")
   isDeleted    Boolean  @default(false) @map("is_deleted")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")

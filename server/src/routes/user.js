@@ -18,6 +18,7 @@ router.get('/profile', requireAuth, async (req, res) => {
         status: true,
         position: true,
         groupId: true,
+        managerIsTeacher: true,
         group: { select: { id: true, name: true, paymentPhone: true, paymentBank: true } },
         balance: { select: { amount: true } },
       },
@@ -36,6 +37,7 @@ router.get('/profile', requireAuth, async (req, res) => {
       status: user.status,
       position: user.position,
       group: user.group,
+      managerIsTeacher: user.managerIsTeacher ?? false,
       balance: user.balance ? user.balance.amount : null,
     });
   } catch (err) {

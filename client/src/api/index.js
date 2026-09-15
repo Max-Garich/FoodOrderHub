@@ -116,6 +116,8 @@ export const adminApi = {
   deleteGroup: (id) => request(`/admin/groups/${id}`, { method: 'DELETE' }),
   assignManager: (groupId, userId) =>
     request(`/admin/groups/${groupId}/manager`, { method: 'POST', body: JSON.stringify({ userId }) }),
+  unassignManager: (groupId) =>
+    request(`/admin/groups/${groupId}/manager`, { method: 'DELETE' }),
 
   teachers: (date) => request(`/admin/teachers${date ? `?date=${date}` : ''}`),
 

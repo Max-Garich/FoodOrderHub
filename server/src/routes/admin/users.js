@@ -36,6 +36,7 @@ router.get('/manager/users', requireAuth, requireRole('MANAGER', 'SUPER_ADMIN'),
     if (req.user.role === 'MANAGER') {
       where.groupId = req.user.groupId;
       where.role = { in: ['USER', 'MANAGER'] }; // без преподов
+      where.id = { not: req.user.id }; // себя не показываем
     } else if (req.query.groupId) {
       where.groupId = parseInt(req.query.groupId);
       where.role = { in: ['USER', 'MANAGER'] };
@@ -107,7 +108,7 @@ router.post('/manager/users/:id/topup', requireAuth, requireRole('MANAGER', 'SUP
     if (!target || target.isDeleted) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
-    if (target.role === 'TEACHER') {
+    if (target.role === 'TEACHER' || target.managerIsTeacher) {
       return res.status(400).json({ error: 'У преподавателя нет баланса' });
     }
     if (req.user.role === 'MANAGER' && target.groupId !== req.user.groupId) {
@@ -165,7 +166,7 @@ router.post('/manager/users/:id/subtract', requireAuth, requireRole('MANAGER', '
     if (!target || target.isDeleted) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
-    if (target.role === 'TEACHER') {
+    if (target.role === 'TEACHER' || target.managerIsTeacher) {
       return res.status(400).json({ error: 'У преподавателя нет баланса' });
     }
     if (req.user.role === 'MANAGER' && target.groupId !== req.user.groupId) {
@@ -372,7 +373,9 @@ router.put('/admin/users/:id/role', requireAuth, requireRole('SUPER_ADMIN'), asy
 
     const updated = await prisma.user.update({
       where: { id: target.id },
-      data: { role },
+      // Ручная смена роли через список пользователей сбрасывает флаг
+      // «менеджер-препод» — такая смена не делает препода менеджером группы
+      data: { role, managerIsTeacher: false },
     });
 
     res.json({

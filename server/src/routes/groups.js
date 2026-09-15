@@ -54,7 +54,7 @@ router.get('/admin/groups', requireAuth, requireRole('SUPER_ADMIN'), async (req,
       include: {
         users: {
           where: { isDeleted: false },
-          select: { name: true, surname: true, status: true, role: true },
+          select: { name: true, surname: true, status: true, role: true, managerIsTeacher: true },
         },
       },
       orderBy: { name: 'asc' },
@@ -82,7 +82,9 @@ router.get('/admin/groups', requireAuth, requireRole('SUPER_ADMIN'), async (req,
         memberCount: members.length,
         pendingCount: pending.length,
         todayOrderedPeople: todayPeople[g.id]?.size || 0,
+        managerId: manager?.id || null,
         managerName: manager ? `${manager.name} ${manager.surname}` : null,
+        managerIsTeacher: manager ? !!manager.managerIsTeacher : false,
       };
     }));
   } catch (err) {
@@ -92,9 +94,10 @@ router.get('/admin/groups', requireAuth, requireRole('SUPER_ADMIN'), async (req,
 });
 
 // POST /api/admin/groups/:id/manager — назначить менеджера группы (SUPER_ADMIN).
-// Обычно назначают преподавателя: он получает роль MANAGER, привязку к группе,
-// активный статус и баланс для заказов. Прежний менеджер группы становится
-// обычным участником (USER).
+// Обычно назначают преподавателя: он получает роль MANAGER и привязку к группе,
+// но сохраняет права преподавателя — сам без баланса, заказывает как препод
+// (managerIsTeacher = true). Прежний менеджер группы возвращается к своей
+// прежней роли (менеджер-препод → TEACHER, обычный → USER).
 router.post('/admin/groups/:id/manager', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
   try {
     const prisma = req.app.locals.prisma;
@@ -121,25 +124,39 @@ router.post('/admin/groups/:id/manager', requireAuth, requireRole('SUPER_ADMIN')
       return res.status(400).json({ error: 'Этот участник не состоит в выбранной группе' });
     }
 
+    const isTeacher = target.role === 'TEACHER';
+
     const result = await prisma.$transaction(async (tx) => {
-      // Прежний менеджер этой группы становится обычным участником
+      // Прежний менеджер этой группы возвращается к прежней роли:
+      // менеджер-препод → снова TEACHER (без группы), обычный → USER
       const currentManagers = await tx.user.findMany({
         where: { groupId, role: 'MANAGER', isDeleted: false, id: { not: userId } },
       });
       for (const m of currentManagers) {
-        await tx.user.update({ where: { id: m.id }, data: { role: 'USER' } });
+        if (m.managerIsTeacher) {
+          await tx.user.update({
+            where: { id: m.id },
+            data: { role: 'TEACHER', groupId: null, managerIsTeacher: false },
+          });
+        } else {
+          await tx.user.update({ where: { id: m.id }, data: { role: 'USER', managerIsTeacher: false } });
+        }
       }
 
-      // Новому менеджеру: роль, привязка к группе, активный статус
+      // Новому менеджеру: роль, привязка к группе, активный статус.
+      // Препод-менеджер остаётся без баланса (managerIsTeacher = true).
       await tx.user.update({
         where: { id: userId },
-        data: { role: 'MANAGER', groupId, status: 'ACTIVE' },
+        data: { role: 'MANAGER', groupId, status: 'ACTIVE', managerIsTeacher: isTeacher },
       });
 
-      // Менеджер заказывает обед через баланс — создаём, если ещё нет
-      const balance = await tx.balance.findUnique({ where: { userId } });
-      if (!balance) {
-        await tx.balance.create({ data: { userId, amount: 0 } });
+      // Менеджер-участник заказывает обед через баланс — создаём, если ещё нет.
+      // Менеджеру-преподу баланс не нужен.
+      if (!isTeacher) {
+        const balance = await tx.balance.findUnique({ where: { userId } });
+        if (!balance) {
+          await tx.balance.create({ data: { userId, amount: 0 } });
+        }
       }
 
       return { name: target.name, surname: target.surname, groupName: group.name };
@@ -150,6 +167,46 @@ router.post('/admin/groups/:id/manager', requireAuth, requireRole('SUPER_ADMIN')
     });
   } catch (err) {
     console.error('Assign manager error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// DELETE /api/admin/groups/:id/manager — снять менеджера группы (SUPER_ADMIN).
+// Менеджер-препод возвращается к роли TEACHER, обычный менеджер — к USER.
+router.delete('/admin/groups/:id/manager', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const prisma = req.app.locals.prisma;
+    const groupId = parseInt(req.params.id);
+
+    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!group) {
+      return res.status(404).json({ error: 'Группа не найдена' });
+    }
+
+    const manager = await prisma.user.findFirst({
+      where: { groupId, role: 'MANAGER', isDeleted: false },
+    });
+    if (!manager) {
+      return res.status(404).json({ error: 'У этой группы нет менеджера' });
+    }
+
+    if (manager.managerIsTeacher) {
+      await prisma.user.update({
+        where: { id: manager.id },
+        data: { role: 'TEACHER', groupId: null, managerIsTeacher: false },
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: manager.id },
+        data: { role: 'USER', managerIsTeacher: false },
+      });
+    }
+
+    res.json({
+      message: `${manager.name} ${manager.surname} больше не менеджер группы «${group.name}»`,
+    });
+  } catch (err) {
+    console.error('Remove manager error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -275,7 +332,9 @@ router.put('/manager/group/payment', requireAuth, requireRole('MANAGER', 'SUPER_
 export default router;
 
 // ═══════════════════════════════════════════════
-// GET /api/admin/teachers — список преподавателей с агрегацией заказов
+// GET /api/admin/teachers — список преподавателей с агрегацией заказов.
+// Включает и менеджеров-преподавателей (role=MANAGER + managerIsTeacher),
+// чтобы во вкладке «Преподаватели» их можно было видеть и переназначать.
 // Только SUPER_ADMIN
 // ═══════════════════════════════════════════════
 teachersRouter.get('/admin/teachers', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
@@ -284,9 +343,17 @@ teachersRouter.get('/admin/teachers', requireAuth, requireRole('SUPER_ADMIN'), a
     const { date } = req.query;
 
     const teachers = await prisma.user.findMany({
-      where: { role: 'TEACHER', isDeleted: false },
+      where: {
+        isDeleted: false,
+        OR: [
+          { role: 'TEACHER' },
+          { role: 'MANAGER', managerIsTeacher: true },
+        ],
+      },
       select: {
         id: true, name: true, surname: true, email: true, position: true, status: true, createdAt: true,
+        role: true, groupId: true, managerIsTeacher: true,
+        group: { select: { id: true, name: true } },
       },
       orderBy: [{ surname: 'asc' }, { name: 'asc' }],
     });

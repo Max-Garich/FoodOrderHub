@@ -453,7 +453,7 @@ function GroupManagerCard({ group, onChanged, showToast }) {
   const handleAssign = async (e) => {
     e.preventDefault();
     if (!userId) return;
-    if (!confirm(`Назначить менеджером группы «${group.name}»? Прежний менеджер (если был) станет обычным участником.`)) return;
+    if (!confirm(`Назначить менеджером группы «${group.name}»? Прежний менеджер (если был) вернётся к своей прежней роли.`)) return;
     setSaving(true);
     try {
       const res = await adminApi.assignManager(group.id, parseInt(userId));
@@ -467,14 +467,34 @@ function GroupManagerCard({ group, onChanged, showToast }) {
     }
   };
 
+  const handleUnassign = async () => {
+    if (!confirm(`Снять менеджера группы «${group.name}»?`)) return;
+    try {
+      const res = await adminApi.unassignManager(group.id);
+      showToast(res.message);
+      onChanged?.();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <h3 style={{ marginBottom: 8 }}>Менеджер группы</h3>
       <p className="text-sm text-muted" style={{ margin: '0 0 12px' }}>
         {group.managerName
-          ? `Текущий менеджер: ${group.managerName}`
+          ? `Текущий менеджер: ${group.managerName}${group.managerIsTeacher ? ' (преподаватель)' : ''}`
           : 'Менеджер не назначен'}
       </p>
+      {group.managerName && (
+        <button
+          className="btn btn-outline btn-sm"
+          style={{ color: 'var(--danger)', borderColor: 'var(--danger)', marginBottom: 12 }}
+          onClick={() => handleUnassign()}
+        >
+          Снять менеджера
+        </button>
+      )}
       {teachers === null ? (
         <div className="loader"><div className="spinner"></div></div>
       ) : teachers.length === 0 ? (
@@ -956,22 +976,29 @@ function GroupRequests({ groupId, showToast }) {
 function TeachersTab({ showToast }) {
   const [teachers, setTeachers] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [resetUser, setResetUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState({});
+  // Модалка назначения менеджером: выбранный препод + выбранная группа
+  const [assignTeacher, setAssignTeacher] = useState(null);
+  const [assignGroupId, setAssignGroupId] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [t, r] = await Promise.all([
+      const [t, r, g] = await Promise.all([
         adminApi.teachers(date),
         managerApi.requests(),
+        adminApi.groups(),
       ]);
       setTeachers(t);
       // Фильтруем заявки — только преподаватели
       setRequests(r.filter(x => x.role === 'TEACHER'));
+      setGroups(g);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -1038,6 +1065,36 @@ function TeachersTab({ showToast }) {
     setDate(d.toISOString().split('T')[0]);
   };
 
+  // Назначить препода менеджером выбранной группы
+  const handleAssignManager = async (e) => {
+    e.preventDefault();
+    if (!assignGroupId) return;
+    setAssignLoading(true);
+    try {
+      const res = await adminApi.assignManager(parseInt(assignGroupId), assignTeacher.id);
+      showToast(res.message);
+      setAssignTeacher(null);
+      setAssignGroupId('');
+      load();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  // Снять препода с должности менеджера группы
+  const handleUnassignManager = async (t) => {
+    if (!confirm(`Снять ${t.name} ${t.surname} с должности менеджера группы «${t.group?.name || ''}»?`)) return;
+    try {
+      const res = await adminApi.unassignManager(t.groupId);
+      showToast(res.message);
+      load();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const formatDateLabel = () => {
     const d = new Date(date + 'T12:00:00');
     return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -1063,6 +1120,11 @@ function TeachersTab({ showToast }) {
                 <div style={{ fontWeight: 700 }}>
                   {t.name} {t.surname}
                   <span className="badge badge-primary" style={{ marginLeft: 8 }}>Преподаватель</span>
+                  {t.managerIsTeacher && (
+                    <span className="badge badge-success" style={{ marginLeft: 8 }}>
+                      Менеджер: {t.group?.name || 'группа'}
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm text-muted">{t.email}</div>
                 {t.position && <div className="text-xs text-muted">{t.position}</div>}
@@ -1073,6 +1135,21 @@ function TeachersTab({ showToast }) {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => { setAssignTeacher(t); setAssignGroupId(t.managerIsTeacher ? String(t.groupId) : ''); }}
+                >
+                  {t.managerIsTeacher ? 'Сменить группу' : 'Назначить менеджером'}
+                </button>
+                {t.managerIsTeacher && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    onClick={() => handleUnassignManager(t)}
+                  >
+                    Снять менеджера
+                  </button>
+                )}
                 <button className="btn btn-ghost btn-sm" onClick={() => setResetUser(t)}>Пароль</button>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(t.id)}>
                   Удалить
@@ -1164,6 +1241,61 @@ function TeachersTab({ showToast }) {
             )}
           </div>
         ))
+      )}
+
+      {/* Модалка назначения менеджером группы */}
+      {assignTeacher && (
+        <div className="modal-overlay modal-center" onClick={() => { setAssignTeacher(null); setAssignGroupId(''); }}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginBottom: 4 }}>Назначение менеджером</h2>
+            <p className="text-muted" style={{ marginBottom: 4 }}>
+              {assignTeacher.name} {assignTeacher.surname}
+              {assignTeacher.position ? ` — ${assignTeacher.position}` : ''}
+            </p>
+            <p className="text-sm text-muted" style={{ marginBottom: 16 }}>
+              Преподаватель получит доступ к панели менеджера: участники группы, балансы,
+              реквизиты оплаты. Сам он останется без баланса — как обычный преподаватель.
+            </p>
+            <form onSubmit={handleAssignManager}>
+              <div className="input-group">
+                <label>Группа</label>
+                <select
+                  className="input"
+                  value={assignGroupId}
+                  onChange={(e) => setAssignGroupId(e.target.value)}
+                  required
+                  autoFocus
+                >
+                  <option value="" disabled>Выберите группу</option>
+                  {groups.filter(g => g.isActive).map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                      {g.managerName ? ` (менеджер: ${g.managerName})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {assignGroupId && groups.find(g => String(g.id) === assignGroupId)?.managerName && (
+                <p className="text-xs text-muted" style={{ marginBottom: 12 }}>
+                  Прежний менеджер группы вернётся к своей прежней роли.
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  style={{ flex: 1 }}
+                  onClick={() => { setAssignTeacher(null); setAssignGroupId(''); }}
+                >
+                  Отмена
+                </button>
+                <button className="btn btn-primary" type="submit" style={{ flex: 1 }} disabled={assignLoading || !assignGroupId}>
+                  {assignLoading ? 'Сохранение...' : 'Назначить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Модалка сброса пароля */}

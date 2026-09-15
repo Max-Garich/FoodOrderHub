@@ -190,6 +190,7 @@ router.post('/login', async (req, res) => {
         status: user.status,
         groupId: user.groupId,
         position: user.position,
+        managerIsTeacher: user.managerIsTeacher ?? false,
         balance: balanceRec ? balanceRec.amount : null,
         group,
       },

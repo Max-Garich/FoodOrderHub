@@ -5,7 +5,8 @@ import LightboxImg from '../../components/LightboxImg.jsx';
 
 export default function MenuPage() {
   const { user, balance, refreshProfile } = useAuth();
-  const isTeacher = user?.role === 'TEACHER';
+  // Менеджер-препод заказывает без баланса, как преподаватель
+  const isTeacher = user?.role === 'TEACHER' || user?.managerIsTeacher === true;
   const [menuData, setMenuData] = useState(null);
   const [quantities, setQuantities] = useState({});
   const [favorites, setFavorites] = useState(new Set());

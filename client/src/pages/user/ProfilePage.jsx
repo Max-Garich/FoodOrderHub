@@ -12,7 +12,8 @@ export default function ProfilePage() {
   const [todaySpent, setTodaySpent] = useState(0);
   const navigate = useNavigate();
 
-  const isTeacher = user?.role === 'TEACHER';
+  // Менеджер-препод — без баланса, как преподаватель
+  const isTeacher = user?.role === 'TEACHER' || user?.managerIsTeacher === true;
   const hasBalance = !isTeacher && balance !== null;
   const group = user?.group || null;
   const paymentPhone = group?.paymentPhone || '';
