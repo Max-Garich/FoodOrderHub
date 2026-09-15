@@ -64,9 +64,9 @@ if not teacher:
 print(f'  преподаватель: id={teacher["id"]}, {teacher["name"]} {teacher["surname"]}, роль={teacher["role"]}')
 
 # 4. Назначение
-status, res = req('POST', f'/admin/groups/{group["id"]}/manager',
+status, res = req('POST', f'/api/admin/groups/{group["id"]}/manager',
                   {'userId': teacher['id']}, token=token)
-check('POST /admin/groups/:id/manager — назначение', status == 200 and 'назначен' in res.get('message', ''))
+check('POST /api/admin/groups/:id/manager — назначение', status == 200 and 'назначен' in res.get('message', ''))
 print(f'  ответ: {res.get("message")}')
 
 # 5. Проверка результата
