@@ -43,6 +43,11 @@ const authLimiter = rateLimit({
 // Make prisma available to routes
 app.locals.prisma = prisma;
 
+// Мы за nginx-прокси: без этого express-rate-limit видит IP прокси (127.0.0.1)
+// и ВЕСЬ прод делит один бакет лимитов. trust proxy = брать реальный IP клиента
+// из X-Forwarded-For (1 уровень доверия — наш nginx на том же хосте).
+app.set('trust proxy', 1);
+
 app.use(cors());
 // gzip для JSON API и статики — меньше трафика, быстрее загрузка на мобильных
 app.use(compression());
