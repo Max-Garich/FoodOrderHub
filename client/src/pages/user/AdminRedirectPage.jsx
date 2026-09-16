@@ -1,6 +1,7 @@
 import { useAuth, roleHome } from '../../context/AuthContext.jsx';
 import ThemeToggle from '../../components/ThemeToggle.jsx';
 import { adminPanelUrl } from '../../utils/adminUrl.js';
+import { withToken } from '../../utils/sso.js';
 
 // Страница на ОСНОВНОМ сайте для админов (супер-админ, глава столовой).
 // Их панели живут в отдельной админ-панели: https://admin.food-hub27.online
@@ -8,7 +9,7 @@ import { adminPanelUrl } from '../../utils/adminUrl.js';
 export default function AdminRedirectPage() {
   const { user, logout } = useAuth();
 
-  const adminUrl = () => adminPanelUrl(roleHome(user)); // /admin, /canteen или /manager
+  const adminUrl = () => withToken(adminPanelUrl(roleHome(user))); // /admin, /canteen или /manager
 
   return (
     <div className="login-page">

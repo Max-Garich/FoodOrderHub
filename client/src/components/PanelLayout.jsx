@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import { mainSiteUrl } from '../utils/adminUrl.js';
+import { withToken } from '../utils/sso.js';
 
 const ROLE_TITLES = {
   MANAGER: 'Менеджер группы',
@@ -44,7 +45,7 @@ export default function PanelLayout({ tabs, activeTab, onTabChange, topbarExtra,
           {user?.role === 'MANAGER' && (
             <button
               className="btn btn-ghost btn-sm"
-              onClick={() => { window.location.href = mainSiteUrl('/'); }}
+              onClick={() => { window.location.href = withToken(mainSiteUrl('/')); }}
               title="Перейти на основной сайт в режиме участника и заказать обед"
             >
               Заказать обед

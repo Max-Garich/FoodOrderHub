@@ -4,6 +4,7 @@ import { useAuth, roleHome } from '../context/AuthContext.jsx';
 import { orderApi } from '../api/index.js';
 import ThemeToggle from './ThemeToggle.jsx';
 import { adminPanelUrl } from '../utils/adminUrl.js';
+import { withToken } from '../utils/sso.js';
 
 export default function UserLayout() {
   const { user, balance, loading, isAuthenticated, isPending } = useAuth();
@@ -133,7 +134,7 @@ export default function UserLayout() {
           <span>Профиль</span>
         </NavLink>
         {user?.role === 'MANAGER' && (
-          <a href={adminPanelUrl('/manager')}>
+          <a href={withToken(adminPanelUrl('/manager'))}>
             <span>Управление</span>
           </a>
         )}
