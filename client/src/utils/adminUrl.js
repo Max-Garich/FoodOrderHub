@@ -12,3 +12,14 @@ export function adminPanelUrl(path = '') {
   }
   return `${window.location.protocol}//${host}:3002${path}`;
 }
+
+// URL основного (пользовательского) сайта — зеркально админ-панели.
+// На проде админка живёт на admin.food-hub27.online, юзер-сайт — на
+// основном домене. Локально / по IP — порт :3001.
+export function mainSiteUrl(path = '') {
+  const host = window.location.hostname;
+  if (host === PROD_DOMAIN || host.endsWith(`.${PROD_DOMAIN}`)) {
+    return `https://${PROD_DOMAIN}${path}`;
+  }
+  return `${window.location.protocol}//${host}:3001${path}`;
+}

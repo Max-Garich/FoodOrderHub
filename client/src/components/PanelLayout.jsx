@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
+import { mainSiteUrl } from '../utils/adminUrl.js';
 
 const ROLE_TITLES = {
   MANAGER: 'Менеджер группы',
@@ -41,7 +42,11 @@ export default function PanelLayout({ tabs, activeTab, onTabChange, topbarExtra,
           {topbarExtra}
           <ThemeToggle />
           {user?.role === 'MANAGER' && (
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => { window.location.href = mainSiteUrl('/'); }}
+              title="Перейти на основной сайт в режиме участника и заказать обед"
+            >
               Заказать обед
             </button>
           )}

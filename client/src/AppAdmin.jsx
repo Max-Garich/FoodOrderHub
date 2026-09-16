@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth, roleHome } from './context/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
+import { mainSiteUrl } from './utils/adminUrl.js';
 
 import AdminLoginPage from './pages/admin/AdminLoginPage.jsx';
 import ManagerPanel from './pages/manager/ManagerPanel.jsx';
@@ -8,11 +9,6 @@ import CanteenPanel from './pages/canteen/CanteenPanel.jsx';
 import SuperAdminPanel from './pages/admin/SuperAdminPanel.jsx';
 
 import './index.css';
-
-// URL основного (пользовательского) сайта — тот же хост, порт 3001
-export function mainSiteUrl(path = '') {
-  return `${window.location.protocol}//${window.location.hostname}:3001${path}`;
-}
 
 // Экран «нет доступа» для не-админов, заглянувших в админ-панель
 function NoAccess({ title = 'Нет доступа', message }) {
